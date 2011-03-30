@@ -1,0 +1,13 @@
+Overview:
+Simple Tree modeling Tool (STreeT) is a simple modeling tool for making realistic trees from image(s) and/or scan data.
+
+Require:
+Qt4, OpenSceneGraph, OpenCV, ANN, libnoise and boost.
+
+To build:
+1. Set the appropriate paths in street.pro
+2. qmake
+3. make
+
+Author(s):
+Jacky Tang <jackytck@gmail.com>
