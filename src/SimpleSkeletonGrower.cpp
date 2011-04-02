@@ -1135,7 +1135,7 @@ void SimpleSkeletonGrower::grow_potential(int no_branch)
 	prune_strictly(_root);
 	if(true)
 	{
-		printf("backward_grow()\n");
+		//printf("backward_grow()\n");
 		backward_grow();
 		prune_strictly(_root);
 	}
@@ -1425,7 +1425,7 @@ void SimpleSkeletonGrower::backward_grow()
 				}
 
 				//visualize pt
-				printf("%f %f %f\n", pt.x(), pt.y(), pt.z());
+				//printf("%f %f %f\n", pt.x(), pt.y(), pt.z());
 			}
 			//d. continue for the next point
 		} //end for loop
