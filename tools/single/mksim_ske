@@ -1,0 +1,34 @@
+#! /bin/bash
+
+# check
+if [[ "$STREET" == "" || "$SINGLE_OUT" == "" ]]; then
+  echo Run \'. ./setup\'.
+  exit
+fi
+
+function check
+{
+    if [ ! -f $1 ]; then
+        echo missing "'$1'".
+        exit
+    fi
+}
+
+check $STREET
+
+if [ ! -d $SINGLE_OUT ]; then
+    echo missing "'$SINGLE_OUT'".
+    exit
+fi
+
+bdlsg=$SINGLE_OUT'z_skeleton'
+check $bdlsg
+leaves=$SINGLE_OUT'z_leaves'
+check $leaves
+
+# outputs
+bdlsg_sim=$SINGLE_OUT'z_skeleton_sim'
+
+cmd="$STREET -v --sim_ske -G $bdlsg --input_leaf $leaves -b $bdlsg_sim $@"
+echo $cmd
+eval "$cmd"

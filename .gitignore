@@ -4,3 +4,4 @@ build
 *.bak
 Makefile
 street
+*.swp

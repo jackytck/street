@@ -1,0 +1,32 @@
+#! /bin/bash
+
+# check
+if [[ "$STREET" == "" || "$SINGLE_OUT" == "" || "$RADIUS" == "" ]]; then
+  echo Run \'. ./setup\'.
+  exit
+fi
+
+function check
+{
+    if [ ! -f $1 ]; then
+        echo missing "'$1'".
+        exit
+    fi
+}
+
+check $STREET
+
+if [ ! -d $SINGLE_OUT ]; then
+    echo missing "'$SINGLE_OUT'".
+    exit
+fi
+
+bdlsg=$SINGLE_OUT'z_skeleton'
+check $bdlsg
+
+# outputs
+mesh=$SINGLE_OUT'z_mesh'
+
+cmd="$STREET -vG $bdlsg -o $mesh --root_radius $RADIUS"
+echo $cmd
+eval "$cmd"

@@ -1,0 +1,33 @@
+#################<Your Settings>#################
+
+# initial skeleton
+init_key='g.bdlsge'
+
+# image-segmentation pair
+image='./isp0/river_birth.png'
+segmentation='./isp0/river_birth_seg.png'
+root=(291 426)
+
+#  output directory
+output='ex1'
+
+# model specifics
+radius=3.0
+leaf_scale=0.002536
+multiplier=1.8
+
+#default library elements
+lib_key=(a.bdlsge b.bdlsge c.bdlsge d.bdlsge)
+
+# generic leaf texture
+gleaf='./res/leaf1.png'
+
+# default directories
+library='./library'
+initial='./initial'
+isp0='./isp0'
+
+# the street program
+street='../../street'
+
+#################<End of Your Settings>##########

@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# import settings
+if [ -f ./settings ]
+then
+    . ./settings
+else
+    echo Missing the \'settings\' file.
+    exit
+fi
+
+# set library
+library=`readlink -f $library`/
+master=$library'master'
+for (( i = 0; i < ${#lib_key[@]}; i++ ))
+do
+    if [ $i = 0 ]; then
+        echo $library${lib_key[$i]} > $master
+    else
+        echo $library${lib_key[$i]} >> $master
+    fi
+done
+
+# set initial
+initial=`readlink -f $initial`/
+master=$initial'master'
+echo $initial$init_key > $master
+
+# set isp0
+isp0=`readlink -f $isp0`/
+master=$isp0'master.isp0'
+image=`readlink -f $image`
+seg=`readlink -f $segmentation`
+echo $image > $master
+echo $seg >> $master
+echo ${root[0]} ${root[1]} >> $master
+
+# export
+export STREET=`readlink -f $street`
+export SINGLE_OUT=`readlink -f $output`/
+export LIBRARY=$library'master'
+export INITIAL=$initial'master'
+export ISP0=$isp0'master.isp0'
+export GLEAF=`readlink -f $gleaf`
+export RADIUS=$radius
+export LEAF_SCALE=$leaf_scale
+export MULTIPLIER=$multiplier

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# check
+if [[ "$STREET" == "" || "$SINGLE_OUT" == "" || "$LIBRARY" == "" || "$INITIAL" == "" || "$ISP0" == "" ]]; then
+  echo Run \'. ./setup\'.
+  exit
+fi
+
+function check
+{
+    if [ ! -f $1 ]; then
+        echo missing "'$1'".
+        exit
+    fi
+}
+
+check $STREET
+check $LIBRARY
+check $ISP0
+check $INITIAL
+
+if [ ! -d $SINGLE_OUT ]; then
+    mkdir $SINGLE_OUT
+fi
+
+# outputs
+cache=$SINGLE_OUT'z_cache'
+bdlsg=$SINGLE_OUT'z_skeleton'
+
+cmd="$STREET -vu -L $LIBRARY -I $INITIAL -S $ISP0 -b $bdlsg -c $cache $@"
+echo $cmd
+eval "$cmd"
