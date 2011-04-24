@@ -1,4 +1,5 @@
 #include "eigen.h"
+#include <stdio.h>
 
 void tred2(int n, float **a, float *d, float *e)
 /* Adopted From Numerical Recipes in C (2nd Edition) pp. 474-475 :

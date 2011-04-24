@@ -2,6 +2,7 @@
 #include "LaserCameraInfo.h"
 #include "LaserCamera.h"
 #include <fstream>
+#include <stdlib.h>
 
 LaserProjector::LaserProjector(): _loaded(false)
 {

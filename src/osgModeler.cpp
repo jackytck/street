@@ -10,6 +10,8 @@
 #include <osgModeling/Extrude>
 #include <osgModeling/Lathe>
 
+#include <cmath>
+
 #define isnan std::isnan
 
 osgModeler::osgModeler()

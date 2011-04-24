@@ -1,4 +1,7 @@
 #include "ThresholdGraph.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 ThresholdGraph::ThresholdGraph(float threshold, std::vector <osg::Vec3> pts): _threshold(threshold), _points(pts)
 {
