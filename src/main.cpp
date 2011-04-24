@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
 		else
 		{
 			//conversion: bdlsg ==> blender's blezier
-			if(!in_bdlsg.empty() && (!out_bdlsg.empty() || !out_bezier.empty()) || !out_xiao.empty())
+			if(!in_bdlsg.empty() && (!out_bdlsg.empty() || !out_bezier.empty() || !out_xiao.empty()))
 			{
 				BDLSkeletonLoader loader;
 				loader.load_file(QString(in_bdlsg.c_str()));

@@ -36,8 +36,8 @@ CvMat *Compute_Symbolic_Veronese_Map( int D, int n )
 	int i;
 
 	//  M_n(D) = 
-	//        / n + D - 1 \
-	//        \   D - 1   / 
+	//        < n + D - 1 >
+	//        <   D - 1   > 
 	int veroneseDimension = Choose( n + D - 1, D - 1 );
 
 	// destination
@@ -127,8 +127,8 @@ CvMat *Compute_Veronese_Embedding( CvMat *Data, int n )
 	int D = Data->cols;
 
 	//  M_n(D) = 
-	//        / n + D - 1 \
-	//        \   D - 1   / 
+	//        < n + D - 1 >
+	//        <   D - 1   > 
 	int veroneseDimension = Choose( n + D - 1, D - 1 );
 
 	CvMat *V = cvCreateMat( Data->rows, veroneseDimension, CV_64FC1 );
