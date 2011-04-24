@@ -113,7 +113,7 @@ int BDL::T_fread(FILE *input) /* Use:       Read text file using fread()      */
     int tokensIndex = 0;
     bool pointBracketOpen = false;
     char imgCoordList[1024];
-    int pointIndex;
+    int pointIndex = 0;
 
     while (*cThisPtr)                 /* Read until reaching null char */
     {

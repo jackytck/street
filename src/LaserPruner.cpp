@@ -704,7 +704,7 @@ std::vector <osg::Vec3> LaserPruner::segment_initial_branch(std::string foliage_
 
     //3. find the thresholding line between cg and lowest point
     float cg_z = 0.0f, cg_y = 0.0f, lowest = -1.0f, rightest = -1.0f, leftest = -1.0f;
-    float threshold_left, threshold_right, threshold;
+    float threshold_left = 0.0f, threshold_right = 0.0f, threshold = 0.0f;
     for(unsigned int i=0; i<foliage.size(); i++)
     {
         osg::Vec3 pt = foliage[i];
@@ -856,7 +856,7 @@ std::vector <osg::Vec3> LaserPruner::segment_initial_branch_plane_sweep(std::vec
     for(unsigned int i=0; i<height_bins.size(); i++)
     {
         std::vector <int> bin_idxs = height_bins[i];
-        float minX, maxX, minY, maxY;
+        float minX = -1.0f, maxX = -1.0f, minY = -1.0f, maxY = -1.0f;
 
         for(unsigned j=0; j<bin_idxs.size(); j++)
         {
@@ -902,7 +902,7 @@ std::vector <osg::Vec3> LaserPruner::segment_initial_branch_plane_sweep(std::vec
     printf("average(%f)\n", average);
 
     //3b. check the percentage increase
-    float threshold_foliage = -1.0f, threshold_init;
+    float threshold_foliage = -1.0f, threshold_init = 0.0f;
     for(unsigned int i=4; i<areas.size(); i++)
     {
         float a = areas[i];

@@ -488,7 +488,7 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
                 //int src = full_touched[rand()%full_touched.size()];
 
                 //find the closest index from full_touched
-                int src = -1, min_diff;
+                int src = -1, min_diff = 0;
                 for(unsigned int j=0; j<full_touched.size(); j++)
                 {
                     int diff = abs(full_touched[j]-i);

@@ -242,7 +242,7 @@ std::vector <BDLSkeletonNode *> Volume::lowest_density_3()
     ret.push_back(NULL);
     ret.push_back(NULL);
 
-    float first, second, third;
+    float first = 0.0f, second = 0.0f, third = 0.0f;
 
     //bfs once to get 3 nodes of the lowest density
     std::queue <BDLSkeletonNode *> Queue;

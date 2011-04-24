@@ -1730,7 +1730,7 @@ void BDLSkeletonNode::save_skeleton(BDLSkeletonNode *root, const char *path)
         BDLSkeletonNode *par = links_helper[i].first;
         BDLSkeletonNode *child = links_helper[i].second;
 
-        int par_index, child_index;
+        int par_index = 0, child_index = 0;
 
         for(unsigned int j=0; j<nodes.size(); j++)
         {
