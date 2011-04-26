@@ -580,8 +580,7 @@ int main(int argc, char *argv[])
 				RealisticLeafGrower leaf_grower;
 				std::string in_real_tex = leaf_grower.load(in_eleaf);
 
-				std::string::size_type idx = out_leaf.rfind('.');
-				std::string tex_path = out_leaf.substr(0, idx) + "_texture.png";//absolute path of billboard texture, 'z_leaves_texture.png'
+				std::string tex_path = out_leaf + "_texture.png";//absolute path of billboard texture, 'z_leaves_texture.png'
 				fs::path leaf_path = fs::system_complete(fs::path(out_leaf));//absolute path of new leaf file, 'z_leaves'
 
 				//debug

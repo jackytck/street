@@ -802,7 +802,7 @@ std::string RealisticLeafGrower::save(std::string path)
 
     fclose(out);
 
-    _tiled_texture.save(QString(name.c_str()), "PNG", 100);
+    _tiled_texture.save(QString(name.c_str()), "PNG", 50);
 
     return name;
 }
