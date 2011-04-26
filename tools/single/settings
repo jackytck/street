@@ -4,8 +4,8 @@
 init_key='g.bdlsge'
 
 # image-segmentation pair
-image='./isp0/river_birth.png'
-segmentation='./isp0/river_birth_seg.png'
+image='./isp0/river_birch.png'
+segmentation='./isp0/river_birch_seg.png'
 root=(291 426)
 
 #  output directory

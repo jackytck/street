@@ -8,25 +8,25 @@ fi
 
 function check
 {
-    if [ ! -f $1 ]; then
+    if [ ! -f "$1" ]; then
         echo missing "'$1'".
         exit
     fi
 }
 
-check $STREET
+check "$STREET"
 
-if [ ! -d $SINGLE_OUT ]; then
+if [ ! -d "$SINGLE_OUT" ]; then
     echo missing "'$SINGLE_OUT'".
     exit
 fi
 
 bdlsg=$SINGLE_OUT'z_skeleton'
-check $bdlsg
+check "$bdlsg"
 
 # outputs
 mesh=$SINGLE_OUT'z_mesh'
 
-cmd="$STREET -vG $bdlsg -o $mesh --root_radius $RADIUS"
+cmd="\"$STREET\" -vG \"$bdlsg\" -o \"$mesh\" --root_radius \"$RADIUS\""
 echo $cmd
 eval "$cmd"

@@ -8,29 +8,29 @@ fi
 
 function check
 {
-    if [ ! -f $1 ]; then
+    if [ ! -f "$1" ]; then
         echo missing "'$1'".
         exit
     fi
 }
 
-check $STREET
-check $GLEAF
-check $ISP0
+check "$STREET"
+check "$GLEAF"
+check "$ISP0"
 
-if [ ! -d $SINGLE_OUT ]; then
+if [ ! -d "$SINGLE_OUT" ]; then
     echo missing "'$SINGLE_OUT'".
     exit
 fi
 
 cache=$SINGLE_OUT'z_cache'
-check $cache
+check "$cache"
 bdlsg=$SINGLE_OUT'z_skeleton'
-check $bdlsg
+check "$bdlsg"
 
 # outputs
 leaves=$SINGLE_OUT'z_leaves'
 
-cmd="$STREET -v --gleaf_texture $GLEAF --leaf_scale $LEAF_SCALE -S $ISP0 -G $bdlsg -r $leaves --kd `head -1 $cache`"
+cmd="\"$STREET\" -v --gleaf_texture \"$GLEAF\" --leaf_scale \"$LEAF_SCALE\" -S \"$ISP0\" -G \"$bdlsg\" -r \"$leaves\" --kd `head -1 \"$cache\"`"
 echo $cmd
 eval "$cmd"
