@@ -4,7 +4,7 @@
 #include "Transformer.h"
 #include <fstream>
 
-GenericLeafGrower::GenericLeafGrower(): _root(NULL), _scale(-1.0f), _verbose(false)
+GenericLeafGrower::GenericLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
     srand(time(NULL));
 }
@@ -24,6 +24,14 @@ void GenericLeafGrower::set_scale(float s)
 	_scale = s;
 }
 
+void GenericLeafGrower::set_parameters(float grow_zone, float radius_k, int pedal, float fuzziness)
+{
+    _grow_zone = grow_zone;
+    _radius_k = radius_k;
+    _pedal = pedal;
+    _fuzziness = fuzziness;
+}
+
 void GenericLeafGrower::set_verbose(bool flag)
 {
 	_verbose = flag;
@@ -41,8 +49,8 @@ void GenericLeafGrower::grow()
     if(!_root)
         return;
 
-    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
 	const double gold_angle = 137.50776405003785; //Golden Angle
+    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
 
 	if(_verbose)
 		printf("Current leaf-scale is %f.\n", leaf_scale);
@@ -51,8 +59,7 @@ void GenericLeafGrower::grow()
     //bfs once, find the approximate tangent by (current - prev)
     //add a leaf or leaves if this node has no children
     //or its radius is smaller than a fraction of the radius of the root
-    //double radius_thresold = _root->_radius * 0.95;
-    double radius_thresold = _root->_radius * 0.1;
+    double radius_thresold = _root->_radius * _radius_k;
 	float height = BDLSkeletonNode::max_height(_root);
 
     std::queue <BDLSkeletonNode *> Queue;
@@ -80,15 +87,10 @@ void GenericLeafGrower::grow()
 
         //graph's leafs || branch with small radius
         if(true || front->_children.empty() || front->_radius <= radius_thresold)//lateral
-        //if(front->_children.empty() || front->_radius <= radius_thresold)//non-lateral
-        //if(front->_children.size() == 0)
         {
 			osg::Vec3 pos = Transformer::toVec3(front);
 			//don't grow leaf near the root
-			//if((pos-Transformer::toVec3(_root)).length() < height/1.8f)
-			//if((pos-Transformer::toVec3(_root)).length() < height/2.1f)
-			if((pos-Transformer::toVec3(_root)).length() < height/3.5f)
-			//if((pos-Transformer::toVec3(_root)).length() < height/5.0f)
+			if((pos-Transformer::toVec3(_root)).length() < height * _grow_zone)
 				continue;
 
 			osg::Vec3 pre = Transformer::toVec3(front->_prev);
@@ -108,13 +110,7 @@ void GenericLeafGrower::grow()
             double div_angle = (rand()%30-15+50)/180.0*M_PI;
 
             //number of leaf of this node has
-            //int no_leaf = rand()%4+1; //legacy
-            //int no_leaf = rand()%12+10; //for individual leaf
-			//int no_leaf = rand()%14+14; //custom
-			//int no_leaf = rand()%12+12; //laser
-			int no_leaf = rand()%13+13; //laser
-			//int no_leaf = rand()%4+4; //young river birth
-            //int no_leaf = rand()%20+20; //for billboard
+            int no_leaf = rand()%_pedal + _pedal;
 			if(front->_children.size() == 0)
 				no_leaf += 2;
 
@@ -126,7 +122,6 @@ void GenericLeafGrower::grow()
 				double angle_int;
 				angle = modf(angle, &angle_int);
 				angle += int(angle_int) % 360;
-				//int cycle = angle_int / 360;
 				float cycle = angle_int / 360.0f;
 
 				//the more turn the larger div_angle
@@ -141,13 +136,8 @@ void GenericLeafGrower::grow()
 					offset = par_child_dist;
 				osg::Vec3 tmp_pos = pos - approxi_tangent*offset;
 				
-				//consider the radius of trunk too, remember to rectify first to get the radius
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 1.0f : 1.2f);
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 0.3f : 1.0f);
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 0.1f : 0.3f);//laser
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 0.05 : 0.15);//laser 2
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 0.05 : 0.05);//laser 2
-				//tmp_pos += div * front->_radius * (front->_children.empty() ? 0.08f : 0.1f);//laser
+				//add some fuzziness for more seamless coverage
+				tmp_pos += div * front->_radius * (front->_children.empty() ? _fuzziness*0.8f : _fuzziness);
 
                 //preparing for 1 pos, 4 vertices and 4 tex-coords
                 osgModeler::createLeaf(all_v, all_tex, tmp_pos, div, 360.0/no_leaf*i, leaf_scale, flat_leaf);

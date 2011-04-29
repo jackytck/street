@@ -7,7 +7,7 @@
 #include <fstream>
 #include "LaserProjector.h"
 
-RealisticLeafGrower::RealisticLeafGrower(): _root(NULL), _scale(-1.0f), _verbose(false)
+RealisticLeafGrower::RealisticLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
     srand(time(NULL));
 }
@@ -28,6 +28,14 @@ void RealisticLeafGrower::setup(BDLSkeletonNode *root, std::string generic_path,
 void RealisticLeafGrower::set_scale(float s)
 {
 	_scale = s;
+}
+
+void RealisticLeafGrower::set_parameters(float grow_zone, float radius_k, int pedal, float fuzziness)
+{
+    _grow_zone = grow_zone;
+    _radius_k = radius_k;
+    _pedal = pedal;
+    _fuzziness = fuzziness;
 }
 
 void RealisticLeafGrower::set_verbose(bool flag)
@@ -52,6 +60,7 @@ void RealisticLeafGrower::grow_single_image(int w, int h, float scale, int root_
     GenericLeafGrower leaf_grower;
     leaf_grower.set_verbose(_verbose);
     leaf_grower.setup(_root, _generic_texure, _scale);
+    leaf_grower.set_parameters(_grow_zone, _radius_k, _pedal, _fuzziness);
     leaf_grower.grow();
 
     _all_pos = leaf_grower._all_pos;

@@ -13,8 +13,9 @@
  * Usage:
  * 1. GenericLeafGrower()
  * 2. setup()
- * 3. grow()
- * 4. save()
+ * 3. set_parameters()
+ * 4. grow()
+ * 5. save()
  */
 class GenericLeafGrower
 {
@@ -31,6 +32,14 @@ class GenericLeafGrower
         /* setting the scale, for re-using this LeafGrower object
          */
         void set_scale(float s);
+
+        /* set other parameters
+         * grow_zone: grow above this fraction of height only
+         * radius_k: besides leaf node, grow if radius is smaller than this fraction
+         * pedal: ~ expected number of leaf pedals
+         * fuzziness: control the degree of unrestricted growing
+         */
+        void set_parameters(float grow_zone, float radius_k, int pedal, float fuzziness);
 
 		/* set the mode as verbose
 		 */
@@ -81,6 +90,10 @@ class GenericLeafGrower
         //data members
         BDLSkeletonNode *_root;
 		float _scale;
+        float _grow_zone;
+        float _radius_k;
+        int _pedal;
+        float _fuzziness;
 		std::string _generic_texure;
 		bool _verbose;
 };

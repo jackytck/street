@@ -13,7 +13,11 @@ output='ex1'
 
 # model specifics
 radius=3.0
-leaf_scale=0.002536
+leaf_scale=0.002636
+leaf_grow_zone=0.286
+leaf_radius_k=0.1
+leaf_pedal=13
+leaf_fuzziness=0.6
 multiplier=1.8
 
 #default library elements

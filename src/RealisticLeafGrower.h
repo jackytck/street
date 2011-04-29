@@ -33,6 +33,10 @@ class RealisticLeafGrower
          */
         void set_scale(float s);
 
+        /* same as GenericLeafGrower
+         */
+        void set_parameters(float grow_zone, float radius_k, int pedal, float fuzziness);
+
 		/* set the mode as verbose
 		 */
 		void set_verbose(bool flag);
@@ -115,6 +119,10 @@ class RealisticLeafGrower
         //data members
         BDLSkeletonNode *_root;
 		float _scale;
+        float _grow_zone;
+        float _radius_k;
+        int _pedal;
+        float _fuzziness;
 		std::string _generic_texure;
 		bool _verbose;
         QImage _tiled_texture;

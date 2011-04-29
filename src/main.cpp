@@ -56,6 +56,12 @@ int main(int argc, char *argv[])
 	bool is_laser_raw = false;//by default the simple point is assume to be segmented
 	float input_k_d;
 
+    //generic leaf parameters
+    float leaf_grow_zone;
+    float leaf_radius_k;
+    int leaf_pedal;
+    float leaf_fuzziness;
+
 	//inputs for leaves simplification
 	bool is_simplify_leaf = false;//read realistic leaves from path: in_eleaf and output to: out_leaf
 	bool is_simplify_skeleton = false;//read leaves from path: in_eleaf, read skeleton from path: in_bdlsg, and output to: out_bdlsg
@@ -88,6 +94,10 @@ int main(int argc, char *argv[])
 		("gleaf_texture", po::value <std::string>(&in_gleaf), "Texture of generic leaf")
 		("texture_modifier", po::value <std::string>(&in_gleaf_modifier), "Modify the color of generic texture")
 		("leaf_scale", po::value <float>(&leaf_scale)->default_value(0.0), "Leaf's scale")
+		("leaf_grow_zone", po::value <float>(&leaf_grow_zone)->default_value(0.28), "Grow above this fraction")
+		("leaf_radius_k", po::value <float>(&leaf_radius_k)->default_value(0.1), "Grow if node is small")
+		("leaf_pedal", po::value <int>(&leaf_pedal)->default_value(13), "Number of leaf per node")
+		("leaf_fuzziness", po::value <float>(&leaf_fuzziness)->default_value(0.0), "Leaf's fuzzy coverage")
 		("texture_multiplier", po::value <float>(&texture_multiplier)->default_value(1.8f), "Control size of billboards inside tiled texture")
 		("gleaf,g", po::value <std::string>(&out_generic_leaf), "Output generic leaf")
 		("rleaf,r", po::value <std::string>(&out_realistic_leaf), "Output realistic leaf")
@@ -107,7 +117,7 @@ int main(int argc, char *argv[])
 		po::store(po::parse_command_line(argc, argv, desc), vm);
 		po::notify(vm);
 
-		if(vm.count("help"))
+		if(vm.count("help") || argc == 1)
 		{
 			std::cout << desc << "\n";
 			return 1;
@@ -115,7 +125,7 @@ int main(int argc, char *argv[])
 
 		if(vm.count("version"))
 		{
-			printf("simple_tree version 1.2 (Jacky Tang)\n");
+			printf("street version 1.3 (Jacky Tang, May 2011)\n");
 			return 0;
 		}
 
@@ -510,6 +520,8 @@ int main(int argc, char *argv[])
 				RealisticLeafGrower leaf_grower;
 				leaf_grower.set_verbose(verbose);
 				leaf_grower.setup(skeleton, in_gleaf, leaf_scale);
+                leaf_grower.set_parameters(leaf_grow_zone, leaf_radius_k, leaf_pedal, leaf_fuzziness);
+
 				int w = 2048*1;
 				leaf_grower.grow_single_image(w, w, input_k_d, isp0);
 				std::string real_tex_path = leaf_grower.save(out_realistic_leaf);//realistic texture path
