@@ -1549,3 +1549,52 @@ std::vector <osg::Vec3> Transformer::icosahedron(int depth)
 
     return ret;
 }
+
+std::vector <osg::Vec3> Transformer::interpolate_bezier_2(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, int time)
+{
+    std::vector <osg::Vec3> ret;
+    for(int i=0; i<time; i++)
+    {
+        float t = float(i)/time;
+        osg::Vec3 cur = a*(1-t)*(1-t) + b*2*(1-t)*t + c*t*t;
+        ret.push_back(cur);
+    }
+    return ret;
+}
+
+void Transformer::rect_plane(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, osg::Vec3& d, osg::Vec3& e, float w)
+{
+    //normal, u, v of plane
+    osg::Vec3 v = a - b;
+    if(w == -1.0f)
+        w = v.length();
+    v.normalize();
+
+    osg::Vec3 n = (c-b) ^ v;
+    n.normalize();
+
+    osg::Vec3 u = v ^ n;
+
+    d = b + u * w;
+    e = a + u * w;
+}
+
+float Transformer::average_inter_dist(std::vector <osg::Vec3> list)
+{
+    float ret = 0.0f;
+    int cnt = 0;
+
+    for(unsigned int i=0; i<list.size()-1; i++)
+    {
+        osg::Vec3 cur = list[i];
+        osg::Vec3 next = list[i+1];
+
+        ret += (cur - next).length();
+        cnt++;
+    }
+
+    if(cnt > 0)
+        ret /= cnt;
+
+    return ret;
+}

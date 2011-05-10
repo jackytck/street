@@ -1,0 +1,37 @@
+#! /bin/bash
+
+# check
+if [[ "$STREET" == "" || "$SINGLE_OUT" == "" || "$GLEAF" == "" || "$ISP0" == "" || "$LEAF_SCALE" == "" || "$LEAF_GROW_ZONE" == "" || "$LEAF_RADIUS_K" == "" || "$LEAF_PEDAL" == "" || "$LEAF_FUZZINESS" == "" ]]; then
+  echo Run \'. ./setup\'.
+  exit
+fi
+
+function check
+{
+    if [ ! -f "$1" ]; then
+        echo missing "'$1'".
+        exit
+    fi
+}
+
+check "$STREET"
+check "$GLEAF"
+check "$ISP0"
+
+if [ ! -d "$SINGLE_OUT" ]; then
+    echo missing "'$SINGLE_OUT'".
+    exit
+fi
+
+cache=$SINGLE_OUT'z_cache'
+check "$cache"
+bdlsg=$SINGLE_OUT'z_skeleton'
+check "$bdlsg"
+
+# outputs
+leaves=$SINGLE_OUT'z_leaves'
+
+#cmd="\"$STREET\" -v --gleaf_texture \"$GLEAF\" --leaf_scale \"$LEAF_SCALE\" --leaf_grow_zone \"$LEAF_GROW_ZONE\" --leaf_radius_k \"$LEAF_RADIUS_K\" --leaf_pedal \"$LEAF_PEDAL\" --leaf_fuzziness \"$LEAF_FUZZINESS\" -S \"$ISP0\" -G \"$bdlsg\" -r \"$leaves\" --kd `head -1 \"$cache\"`"
+cmd="\"$STREET\" -v --gleaf_texture \"$GLEAF\" --leaf_scale \"$LEAF_SCALE\" -G \"$bdlsg\" --palm"
+echo $cmd
+eval "$cmd"

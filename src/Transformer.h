@@ -285,6 +285,20 @@ class Transformer
         /* get the vertices of the sub-divided icosahedron
          */
         static std::vector <osg::Vec3> icosahedron(int depth);
+
+        /* interpolate the quadratic bezier curve
+         */
+        static std::vector <osg::Vec3> interpolate_bezier_2(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, int time = 11);
+
+        /* given 3 points a,b,c, construct d,e such that abde is a rectangle with width w lying on the plane
+         * defined by a,b,c and {c,d,e} are on the same side (with respect to a,b)
+         */
+        static void rect_plane(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, osg::Vec3& d, osg::Vec3& e, float w = -1.0f);
+
+        /* find the average of the inter distance between a list of points
+         * return -1.0f if list.size() is smaller than 2
+         */
+        static float average_inter_dist(std::vector <osg::Vec3> list);
 };
 
 #endif

@@ -1,7 +1,7 @@
 #################<Your Settings>#################
 
 # initial skeleton
-init_key='g.bdlsge'
+init_key='palm.bdlsge'
 
 # image-segmentation pair
 image='./isp0/river_birch.png'

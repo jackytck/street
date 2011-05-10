@@ -152,6 +152,158 @@ void GenericLeafGrower::grow()
     return;
 }
 
+void GenericLeafGrower::grow_palm()
+{
+    if(!_root)
+        return;
+
+    //todo: fine tune other parameters by configs in settings
+    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
+	if(_verbose)
+		printf("Current leaf-scale is %f.\n", leaf_scale);
+
+    //add leaves
+    //assume its geometry is a stick, otherwise just choice the first terminal node
+    BDLSkeletonNode *terminal = _root;
+    while(!terminal->_children.empty())
+        terminal = terminal->_children[0];
+    if(terminal == _root)
+    {
+        printf("GenericLeafGrower::grow_palm():incorrect input skeleton\n");
+        return;
+    }
+    osg::Vec3 ter = Transformer::toVec3(terminal);
+
+    //use this vector to store all vertices and texture coords
+    osg::ref_ptr <osg::Vec3Array> all_v = new osg::Vec3Array;
+    osg::ref_ptr <osg::Vec2Array> all_tex = new osg::Vec2Array;
+	_all_pos.clear();
+
+    //				//add some fuzziness for more seamless coverage
+    //				tmp_pos += div * front->_radius * (front->_children.empty() ? _fuzziness*0.8f : _fuzziness);
+    //
+    //                //preparing for 1 pos, 4 vertices and 4 tex-coords
+    //                osgModeler::createLeaf(all_v, all_tex, tmp_pos, div, 360.0/no_leaf*i, leaf_scale, flat_leaf);
+    //				_all_pos.push_back(tmp_pos);
+    //
+    //	_all_v = Transformer::osg_to_std_array(all_v);
+    //	_all_tex = Transformer::osg_to_std_array(all_tex);
+
+    //quadratic bezier curvers
+    //a. infer 2nd control points
+    std::vector <osg::Vec3> sec_pts;
+    osg::Vec3 normal = ter - Transformer::toVec3(terminal->_prev);
+    normal.normalize();
+    float height = terminal->dist(_root);
+    osg::Vec3 plane_pt = ter + normal * height * 0.15f;
+
+    osg::Vec3 u(normal.y(), -normal.x(), 0.0f);
+    u.normalize();
+    osg::Vec3 v = normal ^ u;
+
+    int no_leaf = 5;
+    float plane_r = height * 0.1f;
+    float thetha = 0.0f;
+
+    for(int i=0; i<no_leaf; i++)
+    {
+        osg::Vec3 ctr_pt = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
+        sec_pts.push_back(ctr_pt);
+
+        thetha += 1.0f / no_leaf * 2 * M_PI;
+    }
+
+    //b. infer 3rd control points
+    std::vector <osg::Vec3> third_pts;
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt = sec_pts[i] - normal * height * 0.2f + (sec_pts[i] - plane_pt) * 1.3f;
+        third_pts.push_back(ctr_pt);
+    }
+
+    //c. interpolate the curves
+    std::vector <std::vector <osg::Vec3> > paths;
+    float inter_width = 0.0f;
+    for(int i=0; i<no_leaf; i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+
+        std::vector <osg::Vec3> on_curve = Transformer::interpolate_bezier_2(ctr_pt1, ctr_pt2, ctr_pt3);
+        on_curve.push_back(ctr_pt3);
+
+        //set length between hops
+        if(i==0 && on_curve.size() > 1)
+            inter_width = Transformer::average_inter_dist(on_curve);
+
+        paths.push_back(on_curve);
+
+        //debug
+        if(i==0)
+            for(unsigned int j=0; j<on_curve.size(); j++)
+                third_pts.push_back(on_curve[j]);
+    }
+
+    //d. infer the starting vertices of leaves
+    std::vector <osg::Vec3> start_as;
+    std::vector <osg::Vec3> start_bs;
+    thetha = 0.0f;
+
+    for(int i=0; i<no_leaf; i++)
+    {
+        start_as.push_back(u * inter_width * 1.20f * cos(thetha+M_PI/2) + v * inter_width * 1.20f * sin(thetha+M_PI/2) + ter);
+        start_bs.push_back(u * inter_width * 1.20f * cos(thetha-M_PI/2) + v * inter_width * 1.20f * sin(thetha-M_PI/2) + ter);
+
+        thetha += 1.0f / no_leaf * 2 * M_PI;
+    }
+
+    //e. tile square planes along the path of each leaf
+    std::vector <osg::Vec3> debug_tile;
+    for(int i=0; i<no_leaf; i++)
+    {
+        std::vector <osg::Vec3> on_curve = paths[i];
+        osg::Vec3 a = start_as[i];
+        osg::Vec3 b = start_bs[i];
+
+        if(i==0)
+        {
+            debug_tile.push_back(a);
+            debug_tile.push_back(b);
+        }
+
+        for(unsigned int j=1; j<on_curve.size(); j++)
+        {
+            osg::Vec3 c = on_curve[j];
+            osg::Vec3 d, e;
+
+            Transformer::rect_plane(a, b, c, d, e, (a-b).length()/2.5);
+            a = e;
+            b = d;
+
+            if(i==0)
+            {
+                debug_tile.push_back(e);
+                debug_tile.push_back(d);
+            }
+        }
+    }
+
+    //debug
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+        printf("v %f %f %f\n", sec_pts[i].x(), sec_pts[i].y(), sec_pts[i].z());
+
+    for(unsigned int i=0; i<third_pts.size(); i++)
+        printf("v %f %f %f\n", third_pts[i].x(), third_pts[i].y(), third_pts[i].z());
+
+    printf("hiih\n");
+    for(unsigned int i=0; i<debug_tile.size(); i++)
+        printf("v %f %f %f\n", debug_tile[i].x(), debug_tile[i].y(), debug_tile[i].z());
+
+
+    return;
+}
+
 void GenericLeafGrower::save(std::string path)
 {
 	if(path.empty())

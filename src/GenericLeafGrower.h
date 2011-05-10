@@ -57,6 +57,10 @@ class GenericLeafGrower
          */
         void grow();
 
+        /* grow leaves for palm tree
+         */
+        void grow_palm();
+
 		/* output the grown leaves for external use, e.g. Blender
 		 */
 		void save(std::string path);
