@@ -162,7 +162,7 @@ void GenericLeafGrower::grow_palm()
 	if(_verbose)
 		printf("Current leaf-scale is %f.\n", leaf_scale);
 
-    //assume its geometry is a stick, otherwise just choice the first terminal node
+    //checking: assume its geometry is a stick, otherwise just choose the first terminal node
     BDLSkeletonNode *terminal = _root;
     while(!terminal->_children.empty())
         terminal = terminal->_children[0];
@@ -171,21 +171,9 @@ void GenericLeafGrower::grow_palm()
         printf("GenericLeafGrower::grow_palm():incorrect input skeleton\n");
         return;
     }
+
+    //a. setup frame and parameters for quadratic bezier curvers
     osg::Vec3 ter = Transformer::toVec3(terminal);
-
-    //				//add some fuzziness for more seamless coverage
-    //				tmp_pos += div * front->_radius * (front->_children.empty() ? _fuzziness*0.8f : _fuzziness);
-    //
-    //                //preparing for 1 pos, 4 vertices and 4 tex-coords
-    //                osgModeler::createLeaf(all_v, all_tex, tmp_pos, div, 360.0/no_leaf*i, leaf_scale, flat_leaf);
-    //				_all_pos.push_back(tmp_pos);
-    //
-    //	_all_v = Transformer::osg_to_std_array(all_v);
-    //	_all_tex = Transformer::osg_to_std_array(all_tex);
-
-    //quadratic bezier curvers
-    //a. infer 2nd control points
-    std::vector <osg::Vec3> sec_pts;
     osg::Vec3 normal = ter - Transformer::toVec3(terminal->_prev);
     normal.normalize();
     float height = terminal->dist(_root);
@@ -195,61 +183,79 @@ void GenericLeafGrower::grow_palm()
     u.normalize();
     osg::Vec3 v = normal ^ u;
 
+    int level = 3;
     int no_leaf = 5;
     float plane_r = height * 0.1f;
     float thetha = 0.0f;
 
-    for(int i=0; i<no_leaf; i++)
+    //b. infer list of 2nd and 3rd control points (1st control point is shared by all)
+    std::vector <osg::Vec3> sec_pts, third_pts;
+    for(int l=0; l<level; l++)
     {
-        osg::Vec3 ctr_pt = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
-        sec_pts.push_back(ctr_pt);
+        for(int i=0; i<no_leaf; i++)
+        {
+            osg::Vec3 ctr_pt_2 = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
+            sec_pts.push_back(ctr_pt_2);
 
-        thetha += 1.0f / no_leaf * 2 * M_PI;
-    }
+            osg::Vec3 ctr_pt_3 = ctr_pt_2 - normal * height * 0.2f + (ctr_pt_2 - plane_pt) * 1.3f;
+            third_pts.push_back(ctr_pt_3);
 
-    //b. infer 3rd control points
-    std::vector <osg::Vec3> third_pts;
-    for(unsigned int i=0; i<sec_pts.size(); i++)
-    {
-        osg::Vec3 ctr_pt = sec_pts[i] - normal * height * 0.2f + (sec_pts[i] - plane_pt) * 1.3f;
-        third_pts.push_back(ctr_pt);
+            thetha += 1.0f / no_leaf * 2 * M_PI;
+        }
+
+        //higher and closer to the main trunk for the next level
+        plane_r *= 0.8f;
+        plane_pt = ter + normal * (plane_pt - ter).length() * 1.5f;
+        thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
     }
 
     //c. infer the width of a leaf
     std::vector <osg::Vec3> on_curve = Transformer::interpolate_bezier_2(ter, sec_pts[0], third_pts[0]);
     float inter_width = Transformer::average_inter_dist(on_curve);
 
-    //d. infer the starting vertices of leaves
+    //d. infer the starting vertices of each curve
     std::vector <osg::Vec3> start_as;
     std::vector <osg::Vec3> start_bs;
     thetha = 0.0f;
 
-    for(int i=0; i<no_leaf; i++)
+    for(int l=0; l<level; l++)
     {
-        start_as.push_back(u * inter_width * 1.20f * cos(thetha+M_PI/2) + v * inter_width * 1.20f * sin(thetha+M_PI/2) + ter);
-        start_bs.push_back(u * inter_width * 1.20f * cos(thetha-M_PI/2) + v * inter_width * 1.20f * sin(thetha-M_PI/2) + ter);
+        for(int i=0; i<no_leaf; i++)
+        {
+            start_as.push_back(u * inter_width * 1.20f * cos(thetha+M_PI/2) + v * inter_width * 1.20f * sin(thetha+M_PI/2) + ter);
+            start_bs.push_back(u * inter_width * 1.20f * cos(thetha-M_PI/2) + v * inter_width * 1.20f * sin(thetha-M_PI/2) + ter);
 
-        thetha += 1.0f / no_leaf * 2 * M_PI;
+            thetha += 1.0f / no_leaf * 2 * M_PI;
+        }
+
+        thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
     }
 
     //e. tile square planes along each bezier path
     std::vector <osg::Vec3> debug_tile;
-    for(int i=0; i<no_leaf; i++)
+    for(int l=0; l<level; l++)
     {
-        osg::Vec3 ctr_pt1 = ter;
-        osg::Vec3 ctr_pt2 = sec_pts[i];
-        osg::Vec3 ctr_pt3 = third_pts[i];
+        for(int i=0; i<no_leaf; i++)
+        {
+            osg::Vec3 ctr_pt1 = ter;
+            osg::Vec3 ctr_pt2 = sec_pts[l*no_leaf + i];
+            osg::Vec3 ctr_pt3 = third_pts[l*no_leaf + i];
 
-        osg::Vec3 a = start_as[i];
-        osg::Vec3 b = start_bs[i];
+            osg::Vec3 a = start_as[l*no_leaf + i];
+            osg::Vec3 b = start_bs[l*no_leaf + i];
 
-        std::vector <osg::Vec3> leafs = Transformer::tile_plane_along_path(ctr_pt1, ctr_pt2, ctr_pt3, a, b);
+            std::vector <osg::Vec3> leafs = Transformer::tile_plane_along_path(ctr_pt1, ctr_pt2, ctr_pt3, a, b);
 
-        //debug
-        if(i==0)
-            for(unsigned int j=0; j<leafs.size(); j++)
-                debug_tile.push_back(leafs[j]);
+            //debug
+            //if(i==0)
+                for(unsigned int j=0; j<leafs.size(); j++)
+                    debug_tile.push_back(leafs[j]);
+        }
     }
+
+    //	_all_pos.push_back(tmp_pos);
+    //	_all_v = Transformer::osg_to_std_array(all_v);
+    //	_all_tex = Transformer::osg_to_std_array(all_tex);
 
     //debug
     for(unsigned int i=0; i<sec_pts.size(); i++)
