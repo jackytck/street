@@ -1598,3 +1598,41 @@ float Transformer::average_inter_dist(std::vector <osg::Vec3> list)
 
     return ret;
 }
+
+std::vector <osg::Vec3> Transformer::tile_plane_along_path(osg::Vec3 ctr_pt1, osg::Vec3 ctr_pt2, osg::Vec3 ctr_pt3, osg::Vec3 start_a, osg::Vec3 start_b)
+{
+    std::vector <osg::Vec3> ret;
+
+    //a. interpolate the curve
+    float inter_width = 0.0f;
+    std::vector <osg::Vec3> on_curve = Transformer::interpolate_bezier_2(ctr_pt1, ctr_pt2, ctr_pt3);
+    on_curve.push_back(ctr_pt3);
+
+    //set length between hops
+    if(on_curve.size() > 1)
+        inter_width = Transformer::average_inter_dist(on_curve);
+    if(inter_width == 0.0f)
+        return ret;
+
+    //b. tile square planes along the path
+    osg::Vec3 a = start_a;
+    osg::Vec3 b = start_b;
+
+    for(unsigned int i=1; i<on_curve.size(); i++)
+    {
+        ret.push_back(b);
+        ret.push_back(a);
+
+        osg::Vec3 c = on_curve[i];
+        osg::Vec3 d, e;
+
+        Transformer::rect_plane(a, b, c, d, e, (a-b).length()/2.5);
+        a = e;
+        b = d;
+
+        ret.push_back(b);
+        ret.push_back(a);
+    }
+
+    return ret;
+}

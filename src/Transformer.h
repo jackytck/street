@@ -299,6 +299,18 @@ class Transformer
          * return -1.0f if list.size() is smaller than 2
          */
         static float average_inter_dist(std::vector <osg::Vec3> list);
+
+        /* given 3 control points of a quadratic bezier curve,
+         * tile rectangle planes along the interpolated path
+         * ctr_pt1: 1st control point
+         * ctr_pt2: 2nd control point
+         * ctr_pt3: 3rd control point
+         * start_a: starting point a
+         * start_b: starting point b
+         * return all the vertices of the planes in conventional <a,b,e,f> leaf order, 
+         * including start_a and start_b
+         */
+        static std::vector <osg::Vec3> tile_plane_along_path(osg::Vec3 ctr_pt1, osg::Vec3 ctr_pt2, osg::Vec3 ctr_pt3, osg::Vec3 start_a, osg::Vec3 start_b);
 };
 
 #endif
