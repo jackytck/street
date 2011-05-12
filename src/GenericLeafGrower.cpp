@@ -171,6 +171,8 @@ void GenericLeafGrower::grow_palm()
         printf("GenericLeafGrower::grow_palm():incorrect input skeleton\n");
         return;
     }
+    _all_v.clear();
+    _all_tex.clear();
 
     //a. setup frame and parameters for quadratic bezier curvers
     osg::Vec3 ter = Transformer::toVec3(terminal);
@@ -231,8 +233,7 @@ void GenericLeafGrower::grow_palm()
         thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
     }
 
-    //e. tile square planes along each bezier path
-    std::vector <osg::Vec3> debug_tile;
+    //e. tile square planes along each bezier path, ab:ef = 2.5:1
     for(int l=0; l<level; l++)
     {
         for(int i=0; i<no_leaf; i++)
@@ -246,27 +247,36 @@ void GenericLeafGrower::grow_palm()
 
             std::vector <osg::Vec3> leafs = Transformer::tile_plane_along_path(ctr_pt1, ctr_pt2, ctr_pt3, a, b);
 
-            //debug
-            //if(i==0)
-                for(unsigned int j=0; j<leafs.size(); j++)
-                    debug_tile.push_back(leafs[j]);
+            for(unsigned int j=0; j<leafs.size(); j++)
+                _all_v.push_back(leafs[j]);
         }
     }
 
-    //	_all_pos.push_back(tmp_pos);
-    //	_all_v = Transformer::osg_to_std_array(all_v);
-    //	_all_tex = Transformer::osg_to_std_array(all_tex);
+    //f. set texture coords
+    if(!_all_v.empty() && _all_v.size()%4 == 0)
+    {
+        _all_tex.resize(_all_v.size());
+        for(unsigned int i=0; i<_all_v.size(); i+=4)
+        {
+            _all_tex[i+0] = osg::Vec2(0.0f, 0.0f);
+            _all_tex[i+1] = osg::Vec2(0.0f, 1.0f);
+            _all_tex[i+2] = osg::Vec2(1.0f, 0.0f);
+            _all_tex[i+3] = osg::Vec2(1.0f, 1.0f);
+        }
+    }
 
     //debug
-    for(unsigned int i=0; i<sec_pts.size(); i++)
-        printf("v %f %f %f\n", sec_pts[i].x(), sec_pts[i].y(), sec_pts[i].z());
+    if(false)
+    {
+        for(unsigned int i=0; i<sec_pts.size(); i++)
+            printf("v %f %f %f\n", sec_pts[i].x(), sec_pts[i].y(), sec_pts[i].z());
 
-    for(unsigned int i=0; i<third_pts.size(); i++)
-        printf("v %f %f %f\n", third_pts[i].x(), third_pts[i].y(), third_pts[i].z());
+        for(unsigned int i=0; i<third_pts.size(); i++)
+            printf("v %f %f %f\n", third_pts[i].x(), third_pts[i].y(), third_pts[i].z());
 
-    printf("hiih\n");
-    for(unsigned int i=0; i<debug_tile.size(); i++)
-        printf("v %f %f %f\n", debug_tile[i].x(), debug_tile[i].y(), debug_tile[i].z());
+        for(unsigned int i=0; i<_all_v.size(); i++)
+            printf("v %f %f %f\n", _all_v[i].x(), _all_v[i].y(), _all_v[i].z());
+    }
 
     return;
 }
