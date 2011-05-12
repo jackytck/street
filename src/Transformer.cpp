@@ -1636,3 +1636,43 @@ std::vector <osg::Vec3> Transformer::tile_plane_along_path(osg::Vec3 ctr_pt1, os
 
     return ret;
 }
+
+std::vector <osg::Vec2> Transformer::texture_coords_palm(std::vector <osg::Vec3> all_v, int t_w, int t_h)
+{
+    std::vector <osg::Vec2> ret;
+    if(all_v.size() < 4 || all_v.size()%4 != 0 || t_w <= 0 || t_h <= 0 || (all_v[1]-all_v[0]).length() == 0.0f)
+    {
+        printf("Transformer::texture_coords_palm:input error\n");
+        return ret;
+    }
+
+    //0. allocate memory
+    ret.resize(all_v.size());
+
+    //todo(low pirority): seems not significant since the scale up factor is not big
+    //a. find curve's width and height, assume each quad has the same size
+    //float c_w = (all_v[1] - all_v[0]).length();
+    //float c_h = (all_v[2] - all_v[0]).length() * (all_v.size()/4);
+    //float n_h = t_h / float(t_w) * c_w;//normalized height of texture
+
+    //b. repeat texture in the middle (to avoid scaling up)
+    //if(n_h < c_h)
+    //{
+    //}
+
+    ////c. simply scale down
+    //else
+    {
+        int n = all_v.size() / 4;
+        float k = 1.0f / n;
+        for(unsigned int i=0; i<ret.size(); i+=4)
+        {
+            ret[i+0] = osg::Vec2(1.0f, k * (i/4+0));
+            ret[i+1] = osg::Vec2(0.0f, k * (i/4+0));
+            ret[i+2] = osg::Vec2(1.0f, k * (i/4+1));
+            ret[i+3] = osg::Vec2(0.0f, k * (i/4+1));
+        }
+    }
+
+    return ret;
+}

@@ -3,6 +3,7 @@
 #include "osgModeler.h"
 #include "Transformer.h"
 #include <fstream>
+#include <QImage>
 
 GenericLeafGrower::GenericLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
@@ -233,7 +234,16 @@ void GenericLeafGrower::grow_palm()
         thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
     }
 
-    //e. tile square planes along each bezier path, ab:ef = 2.5:1
+    //e. read width and height of input texture
+    QImage img(_generic_texure.c_str());
+    if(img.isNull())
+    {
+        printf("GenericLeafGrower::grow_palm():_img(%s) error\n", _generic_texure.c_str());
+        return;
+    }
+    int t_w = img.width(), t_h = img.height();
+
+    //f. tile square planes along each bezier path, ab:ef = 2.5:1
     for(int l=0; l<level; l++)
     {
         for(int i=0; i<no_leaf; i++)
@@ -246,22 +256,13 @@ void GenericLeafGrower::grow_palm()
             osg::Vec3 b = start_bs[l*no_leaf + i];
 
             std::vector <osg::Vec3> leafs = Transformer::tile_plane_along_path(ctr_pt1, ctr_pt2, ctr_pt3, a, b);
+            std::vector <osg::Vec2> tex = Transformer::texture_coords_palm(leafs, t_w, t_h);
 
             for(unsigned int j=0; j<leafs.size(); j++)
+            {
                 _all_v.push_back(leafs[j]);
-        }
-    }
-
-    //f. set texture coords
-    if(!_all_v.empty() && _all_v.size()%4 == 0)
-    {
-        _all_tex.resize(_all_v.size());
-        for(unsigned int i=0; i<_all_v.size(); i+=4)
-        {
-            _all_tex[i+0] = osg::Vec2(0.0f, 0.0f);
-            _all_tex[i+1] = osg::Vec2(0.0f, 1.0f);
-            _all_tex[i+2] = osg::Vec2(1.0f, 0.0f);
-            _all_tex[i+3] = osg::Vec2(1.0f, 1.0f);
+                _all_tex.push_back(tex[j]);
+            }
         }
     }
 
