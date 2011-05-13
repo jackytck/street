@@ -180,7 +180,7 @@ void GenericLeafGrower::grow_palm()
     osg::Vec3 normal = ter - Transformer::toVec3(terminal->_prev);
     normal.normalize();
     float height = terminal->dist(_root);
-    osg::Vec3 plane_pt = ter + normal * height * 0.15f;
+    osg::Vec3 plane_pt = ter + normal * height * 0.20f;
 
     osg::Vec3 u(normal.y(), -normal.x(), 0.0f);
     u.normalize();
@@ -188,7 +188,7 @@ void GenericLeafGrower::grow_palm()
 
     int level = 3;
     int no_leaf = 5;
-    float plane_r = height * 0.1f;
+    float plane_r = height * 0.25f;
     float thetha = 0.0f;
 
     //b. infer list of 2nd and 3rd control points (1st control point is shared by all)
@@ -200,15 +200,18 @@ void GenericLeafGrower::grow_palm()
             osg::Vec3 ctr_pt_2 = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
             sec_pts.push_back(ctr_pt_2);
 
-            osg::Vec3 ctr_pt_3 = ctr_pt_2 - normal * height * 0.2f + (ctr_pt_2 - plane_pt) * 1.3f;
+            float drop = l > 0 ? -0.05f : 0.15f;
+            float extend = l > 0 ? 1.1f : 1.2f;
+
+            osg::Vec3 ctr_pt_3 = ctr_pt_2 - normal * height * drop + (ctr_pt_2 - plane_pt) * extend;
             third_pts.push_back(ctr_pt_3);
 
             thetha += 1.0f / no_leaf * 2 * M_PI;
         }
 
         //higher and closer to the main trunk for the next level
-        plane_r *= 0.8f;
-        plane_pt = ter + normal * (plane_pt - ter).length() * 1.5f;
+        plane_r *= (l == level-2) ? 0.6f : 0.80f;
+        plane_pt = ter + normal * (plane_pt - ter).length() * (1.2f + float(l)/level + (l == level-2 ? 0.4f : 0.0f));
         thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
     }
 
