@@ -173,8 +173,8 @@ void LaserSkeletonGrower::setup(std::string master_element, std::string master_s
             for(unsigned int i=0; i<foliage.size(); i++)
             {
                 osg::Vec3 p = foliage[i];
-                //if(p.x() < init_root_x)
-                if(p.x() > init_root_x)
+                if(p.x() < init_root_x)
+                //if(p.x() > init_root_x)
                 //if(false)//tree10
                 {
                     osg::Vec3 mp(init_root_x+(init_root_x-p.x()), p.y(), p.z());

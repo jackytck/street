@@ -590,6 +590,8 @@ int main(int argc, char *argv[])
 				RealisticLeafGrower leaf_grower;
 				leaf_grower.set_verbose(verbose);
 				leaf_grower.setup(skeleton, in_gleaf, leaf_scale);
+                leaf_grower.set_parameters(leaf_grow_zone, leaf_radius_k, leaf_pedal, leaf_fuzziness);
+
 				int w = 2048*1;
 				leaf_grower.grow_laser(w, w, in_laser_sp, in_laser_cam);
 				std::string real_tex_path = leaf_grower.save(out_realistic_leaf);//realistic texture path

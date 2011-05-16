@@ -310,6 +310,7 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
     GenericLeafGrower leaf_grower;
     leaf_grower.set_verbose(_verbose);
     leaf_grower.setup(_root, _generic_texure, _scale);
+    leaf_grower.set_parameters(_grow_zone, _radius_k, _pedal, _fuzziness);
     leaf_grower.grow();
 
     _all_pos = leaf_grower._all_pos;
