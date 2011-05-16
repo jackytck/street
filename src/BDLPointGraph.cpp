@@ -2062,6 +2062,8 @@ BDLSkeletonNode * BDLPointGraph::build_skeleton()
 
         group_avg /= group_size;
         _quantization_step = group_avg / 12.;
+        if(group_avg == 0.0f)
+            return NULL;
 
         int max_bin_id = -1;
 

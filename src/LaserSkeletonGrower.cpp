@@ -16,7 +16,7 @@ LaserSkeletonGrower::~LaserSkeletonGrower()
     BDLSkeletonNode::delete_this(_root);
 }
 
-void LaserSkeletonGrower::setup(std::string master_element, std::string master_skeleton, std::string laser_sp, std::string laser_cam, bool is_laser_raw)
+void LaserSkeletonGrower::setup(std::string master_element, std::string master_skeleton, std::string laser_sp, std::string laser_cam, bool is_laser_raw, std::string output_dir)
 {
     if(is_laser_raw)
     {
@@ -146,8 +146,8 @@ void LaserSkeletonGrower::setup(std::string master_element, std::string master_s
             //4. learn the initial skeleton by shortest path algorithm by BDLTreeParser
             BDLTreeParser treeParser(&bdl);
             //treeParser.build_ann_tree(3);//tree2,3,5,6,7,8,9,11,12,19,20:7,3,11,5,7,8,7,4,4,5,5
-            treeParser.build_threshold_graph(0.15);
-            initial = treeParser.build_skeleton_tree();
+            treeParser.build_threshold_graph(0.25);
+            initial = treeParser.build_skeleton_tree();//may fail if the threshold in build_threshold_graph is too restrictive
 
             if(!initial)
             {
@@ -190,11 +190,11 @@ void LaserSkeletonGrower::setup(std::string master_element, std::string master_s
                 pts_uv2.push_back(pts_uv[i]);
             }
 
-            _pruner.save_foliage(laser_sp + "_foliage", mirrored, pts_img2, pts_uv2);
+            _pruner.save_foliage(output_dir + "/foliage", mirrored, pts_img2, pts_uv2);
         }
 
         //7. export the the learnt skeleton
-        std::string new_init = laser_sp + "_auto_initial";
+        std::string new_init = output_dir + "/initial";
         //printf("saving new_init(%s)\n", new_init.c_str());
         BDLSkeletonNode::save_skeleton(initial, new_init.c_str());
         BDLSkeletonNode::delete_this(initial);

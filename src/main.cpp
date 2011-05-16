@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	float root_radius;
 
 	//inputs for laser data
-	std::string in_laser_sp(""), in_laser_cam("");//simple point and cameras
+	std::string in_laser_sp(""), in_laser_cam(""), auto_initial_out("");//simple point, cameras and output directory
 	bool is_laser_raw = false;//by default the simple point is assume to be segmented
 	float input_k_d;
 
@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 		("laser_sp", po::value <std::string>(&in_laser_sp), "Input path of laser simple point data")
 		("laser_cam", po::value <std::string>(&in_laser_cam), "Input path of laser camera data")
 		("laser_raw", "Learn the initial skeleton from raw points")
+		("auto_initial_out", po::value <std::string>(&auto_initial_out), "Output directory of initial")
 		("kd", po::value <float>(&input_k_d)->default_value(-1.0f), "k_d in cache")
 		("sim_leaf", "Simplify the leaves")
 		("sim_ske", "Simplify the skeleton")
@@ -160,17 +161,24 @@ int main(int argc, char *argv[])
 			goto Break;
 		}
 
+        //for learning initial automatically
+        if(is_laser_raw)
+        {
+            if(!in_laser_sp.empty() && !in_laser_cam.empty() && !auto_initial_out.empty())
+            {
+                LaserSkeletonGrower grower;
+                grower.setup(library, initial, in_laser_sp, in_laser_cam, is_laser_raw, auto_initial_out);//library and initial are unused
+            }
+
+            goto Break;
+        }
+
 		//test for laser data
 		if(!in_laser_sp.empty() && !in_laser_cam.empty() && !library.empty() && !initial.empty() && skeleton_index >=0 && step >= 0)
 		//if(true)
 		{
-			/*
-			*/
 			LaserSkeletonGrower grower;
-			grower.setup(library, initial, in_laser_sp, in_laser_cam, is_laser_raw);
-
-			if(is_laser_raw)//construct initial skeleton only
-				goto Break;
+			grower.setup(library, initial, in_laser_sp, in_laser_cam);
 
 			grower.set_initial_skeleton(skeleton_index);
 			if(!exhaust)
