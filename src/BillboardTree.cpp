@@ -1924,7 +1924,7 @@ osg::ref_ptr <osg::Geode> BillboardTree::get_output(bool maya, bool double_side)
     return ret;
 }
 
-std::string BillboardTree::save_output(std::string path, bool double_side)
+std::string BillboardTree::save_output(std::string path, std::string tex_path, bool double_side)
 {
 	std::string ret("");
     std::vector <osg::Vec3> v;
@@ -1993,8 +1993,7 @@ std::string BillboardTree::save_output(std::string path, bool double_side)
         fprintf(out, "%f %f\n", tex[i].x(), tex[i].y());
 
     //file path of the tiled texture
-    std::string::size_type idx = path.rfind('.');
-    std::string path_new = path.substr(0, idx) + "_texture.png";
+    std::string path_new = tex_path;
     fprintf(out, "%s\n", path_new.c_str());
 
     fclose(out);

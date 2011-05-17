@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 						billboard._verbose = verbose;
 						billboard.do_work(std::max(1, int(height / 6.0f)));
 						billboard.generate_textures(path_new.c_str(), texture_multiplier);
-						billboard.save_output(full_path.string().c_str());
+						billboard.save_output(full_path.string().c_str(), path_new);
 
 						if(verbose)
 							printf("BillboardTree is done.\n");
@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
 					billboard._verbose = verbose;
 					billboard.do_work(std::max(1, int(height / 6.0f)));
 					billboard.generate_textures(path_new.c_str(), texture_multiplier);
-					billboard.save_output(full_path.string().c_str());
+					billboard.save_output(full_path.string().c_str(), path_new);
 
 					if(verbose)
 						printf("BillboardTree is done.\n");
@@ -508,7 +508,7 @@ int main(int argc, char *argv[])
 						billboard._verbose = verbose;
 						billboard.do_work(std::max(1, int(height / 6.0f)));
 						billboard.generate_textures(path_new.c_str(), texture_multiplier);
-						path_new = billboard.save_output(full_path.string().c_str(), true);
+						path_new = billboard.save_output(full_path.string().c_str(), path_new, true);
 
 						if(!in_gleaf_modifier.empty())
 							GenericLeafGrower::colorize(in_gleaf_modifier, path_new);
@@ -559,7 +559,7 @@ int main(int argc, char *argv[])
 					billboard._verbose = verbose;
 					billboard.do_work(std::max(1, int(height / 6.0f)));
 					billboard.generate_textures(path_new.c_str(), texture_multiplier);
-					billboard.save_output(full_path.string().c_str(), true);
+					billboard.save_output(full_path.string().c_str(), path_new, true);
 				}
 			}
             //testing palm tree
@@ -615,7 +615,7 @@ int main(int argc, char *argv[])
 				//	//billboard.do_work(std::max(1, int(height / 6.0f)));
 				//	billboard.do_work(std::max(1, 2));
 				//	billboard.generate_textures(path_new.c_str(), texture_multiplier);
-				//	billboard.save_output(full_path.string().c_str(), true);
+				//	billboard.save_output(full_path.string().c_str(), path_new, true);
 				//}
 			}
 			//conversion: realistic leaves ==> simplified leaves
@@ -639,7 +639,7 @@ int main(int argc, char *argv[])
 				billboard._verbose = verbose;
 				billboard.do_work(6);
 				billboard.generate_textures(tex_path.c_str(), texture_multiplier);
-				billboard.save_output(leaf_path.string().c_str(), false);
+				billboard.save_output(leaf_path.string().c_str(), tex_path, false);
 			}
 			//conversion: skeleton + leaves ==> simplified skeleton
 			if(is_simplify_skeleton && !in_bdlsg.empty() && !in_eleaf.empty() && !out_bdlsg.empty())

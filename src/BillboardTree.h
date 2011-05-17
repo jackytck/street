@@ -171,10 +171,12 @@ class BillboardTree
         osg::ref_ptr <osg::Geode> get_output(bool maya = false, bool double_side = false);
 
         /* save the vertex array and texture array of all the billboards
+         * path: where to save this billboard?
+         * tex_path: the path of the big texture
 		 * return the path of the newly created texture
          * note: no maya for simplicity
          */
-		std::string save_output(std::string path, bool double_side = false);
+		std::string save_output(std::string path, std::string tex_path, bool double_side = false);
 
         /* given all the group's pointers, find a texture scale that does not exceed max width or height for
          * all textures
