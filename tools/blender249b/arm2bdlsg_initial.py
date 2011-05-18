@@ -12,21 +12,17 @@ import Blender
 from Blender import *
 from collections import deque
 
-debug_out = open('/tmp/blender_log', 'a')
-
 def dump_bones():
     bones = Armature.Get().get('Armature')
 
     if not bones:
         return
-    print >> debug_out, ''
 
     bones = bones.bones.values()
 
     for b in bones:
         head = b.head['ARMATURESPACE']
         tail = b.tail['ARMATURESPACE']
-        print >> debug_out, 'head (%f %f %f)\ttail (%f %f %f)' % (head.x, head.y, head.z, tail.x, tail.y, tail.z)
 
 def bfs(root, output):
     if not root:
@@ -105,7 +101,6 @@ def export(path):
 
     if not bones:
         return
-    print >> debug_out, ''
 
     output = open(path, 'w')
     bones = bones.bones.values()
@@ -115,7 +110,6 @@ def export(path):
     for b in bones:
         if not b.hasParent():
             roots.append(b)
-            print >> debug_out, b.name
 
     #bfs each root
     for b in roots:
@@ -124,7 +118,6 @@ def export(path):
             print >> output, ''
 
     output.close()
-    debug_out.close()
 
 def main():
     #dump_bones()

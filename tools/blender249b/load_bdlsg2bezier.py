@@ -13,8 +13,6 @@ from Blender import *
 from Blender.Mathutils import *
 from collections import deque
 
-debug_out = open('/tmp/blender_log2', 'a')
-
 def add_branch_to_curve(curve, bezier_triples, radii):
     '''
     Add a list of BezTriple to the curve
@@ -105,8 +103,6 @@ def import_bdlsg2bezier(path):
     scn = Scene.GetCurrent()
     ob = scn.objects.new(curve)
     Blender.Redraw()
-
-    debug_out.close()
 
 def main():
     Blender.Window.FileSelector(import_bdlsg2bezier, 'Import')

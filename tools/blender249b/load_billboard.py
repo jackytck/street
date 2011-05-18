@@ -13,7 +13,6 @@ from Blender import *
 from Blender.Mathutils import *
 from collections import deque
 
-debug_out = open('/tmp/blender_log3', 'a')
 PARAMS = {
 	'MakeTransp': 1, 										        # Make face transparent in viewport
 	'MatProps': {'Col': [1.0, 0.0, 0.0], 'Shadeless': 0, 'Ref': 0.8, 'Spec': 0.2, 'Hard': 200, 'Alpha': 0.0, 'ZTransp': 1},
@@ -197,7 +196,6 @@ def import_billboard(path):
         ob = scn.objects.new(foilage, name)
 
     Blender.Redraw()
-    debug_out.close()
 
 def main():
     Blender.Window.FileSelector(import_billboard, 'Import')

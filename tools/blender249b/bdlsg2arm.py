@@ -13,8 +13,6 @@ from Blender import *
 from Blender.Mathutils import *
 from collections import deque
 
-debug_out = open('/tmp/blender_log', 'a')
-
 def parse_file(file):
     v_cnt = int(file.readline().rstrip())
     verts = []
@@ -73,8 +71,6 @@ def import_bdlsg(path):
     construct_arm(graph)
     Blender.Redraw()
     input.close()
-
-    debug_out.close()
 
 def main():
     #dump_bones()
