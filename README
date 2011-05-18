@@ -9,5 +9,15 @@ To build:
 2. qmake
 3. make
 
+To use:
+1. . ./setup
+2. ./mkcache
+3. ./mkske -d n
+4. ./mkmesh
+5. ./mkleaf
+6. ./mksim_ske
+7. ./mksim_mesh
+8. ./mksim_leaf
+
 Author(s):
 Jacky Tang <jackytck@gmail.com>
