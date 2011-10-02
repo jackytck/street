@@ -18,7 +18,7 @@ float VolumeSurface::load(std::string path, float mb_length_d)
     {
         ISPLoader loader;
         loader.load(path);
-        _surface_pts = loader.surface_points(mb_length_d);
+        _surface_pts = loader.surface_points_fast(mb_length_d);
         _k_d = loader._k_d;
 		_relative_pts = loader._relative_pts;
 

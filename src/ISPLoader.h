@@ -30,6 +30,7 @@ class ISPLoader
          * surface_points calls relative_contour_pts calls absolute_contour_pts
          */
         std::vector <osg::Vec3> surface_points(float mb_length_d, int v_step = -1, int v_size = 1000);
+        std::vector <osg::Vec3> surface_points_fast(float mb_length_d);
 
         /* from the segmentation, find the smallest bounding box,
          * and use it as a mask to get the minimum texture

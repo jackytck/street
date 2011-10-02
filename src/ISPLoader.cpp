@@ -3,6 +3,7 @@
 #include <cv.h>
 #include <highgui.h>
 #include "Volume.h"
+#include "FastCache.h"
 
 ISPLoader::ISPLoader()
 {
@@ -135,7 +136,7 @@ std::vector <osg::Vec3> ISPLoader::relative_contour_pts(float mb_length_d)
 
         ret.push_back(relative);
 
-		if(true) //set true and use make_initial.blend to make an initial skeleton
+		if(false) //set true and use make_initial.blend to make an initial skeleton
 			printf("%f %f %f\n", relative.x(), relative.z(), relative.y());
     }
 
@@ -235,6 +236,15 @@ std::vector <osg::Vec3> ISPLoader::surface_points(float mb_length_d, int v_step,
 
     _surface_pts = ret;
     return ret;
+}
+
+std::vector <osg::Vec3> ISPLoader::surface_points_fast(float mb_length_d)
+{
+    std::vector <osg::Vec3> rbounds = relative_contour_pts(mb_length_d);
+	_relative_pts = rbounds;
+
+    FastCache fc(rbounds, 20);
+    return fc.surface_points();
 }
 
 void ISPLoader::construct_min_texture(std::string path, osg::Vec3& cg, osg::Vec2& bottomleft, int& width, int& height)

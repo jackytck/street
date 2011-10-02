@@ -1,15 +1,21 @@
 #################<Your Settings>#################
 
 # initial skeleton
+#init_key='ustred_initial'
+init_key='palm.bdlsge'
 init_key='g.bdlsge'
 
 # image-segmentation pair
+image='./isp0/ustred.png'
 image='./isp0/river_birch.png'
+segmentation='./isp0/ustred_seg.png'
 segmentation='./isp0/river_birch_seg.png'
+root=(597 800)
 root=(291 426)
 
 #  output directory
-output='ex1'
+#output='ustred'
+output='ex3'
 
 # model specifics
 radius=3.0

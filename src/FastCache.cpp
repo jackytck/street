@@ -7,8 +7,8 @@ FastCache::FastCache(std::vector <osg::Vec3> relative_bounds, int step)
     {
         _step = step;
         _rbounds = relative_bounds;
-        inferCacheBound();
         _more_margin = 1.2f;
+        inferCacheBound();
     }
 }
 
@@ -36,15 +36,27 @@ void FastCache::inferCacheBound()
     //b. find 3d metrics
     float width = maxX - minX;
     float height = maxY - minY;
-    float depth = width * 1.5f;
+    float depth = width * 0.7f;
 
     //more offsets
     width *= _more_margin;
     height *= _more_margin;
-    depth *= _more_margin;
 
     //c. set origin
-    _origin = osg::Vec3(minX, minY, -depth);
+    _origin = osg::Vec3(minX, -depth, minY);
+
+    /*
+    printf("bounds:\n");
+    printf("v %f %f %f\n", _origin.x(), _origin.y(), _origin.z());
+    printf("v %f %f %f\n", width+minX, -depth, minY);
+    printf("v %f %f %f\n", minX, depth, minY);
+    printf("v %f %f %f\n", width+minX, depth, minY);
+    printf("v %f %f %f\n", minX, -depth, height+minY);
+    printf("v %f %f %f\n", width+minX, -depth, height+minY);
+    printf("v %f %f %f\n", minX, depth, height+minY);
+    printf("v %f %f %f\n", width+minX, depth, height+minY);
+    printf("end bounds:\n");
+    */
 
     //d. set bounds
     _w = width;
@@ -59,7 +71,7 @@ void FastCache::inferCacheBound()
         _voxel.z() = _d / _step;
 
         //for performance
-        _step_p1 = _step + 1;
+        _step_p1 = _step + 100;
         _step_p2 = _step_p1 * _step_p1;
     }
 
@@ -128,6 +140,9 @@ osg::Vec3 FastCache::unkey(int k)
 
         //return the center
         ret += _voxel * 0.5f;
+
+        //with respect to origin
+        ret += _origin;
     }
 
     return ret;
@@ -143,11 +158,13 @@ std::vector <osg::Vec3> FastCache::surface_points()
     {
         osg::Vec3 rb = _rbounds[i];
 
+        //printf("v %f %f %f\n", rb.x(), 0.0f, rb.y());
+
         //radius
         float r = rb.x() - _cg.x();
 
         //fit an ellipse
-        osg::Vec3 R(rb.x()-_cg.x(), 0.0f, rb.y()-_cg.y());
+        osg::Vec3 R(rb.x()-_cg.x(), 0.0f, rb.y()-_cg.z());
 
         if(r > 0)
             r = R.length() * _w_r/_b_h;
@@ -164,10 +181,12 @@ std::vector <osg::Vec3> FastCache::surface_points()
         if(true || i==size/6 || i==4*size/6)
         {
             //rotate by half-circle
-            for(int theta=-90; theta<90; theta++)
+            for(int theta=-90; theta<90; theta+=8)
             {
-                osg::Vec3 rb_t(r*cos(theta*M_PI/180.0), r*sin(theta*M_PI/180.0), rb.y());
-                rb_t = _cg + R_perp * cos((theta+90)*M_PI/180.0) + R * sin((theta+90)*M_PI/180.0);
+                //osg::Vec3 rb_t(r*cos(theta*M_PI/180.0), r*sin(theta*M_PI/180.0), rb.y());
+                osg::Vec3 rb_t = _cg + R_perp * cos((theta+90)*M_PI/180.0) + R * sin((theta+90)*M_PI/180.0);
+
+                //printf("v %f %f %f\n", rb_t.x(), rb_t.y(), rb_t.z());
 
                 keys.insert(key(rb_t));
             }
@@ -177,6 +196,12 @@ std::vector <osg::Vec3> FastCache::surface_points()
     //b. un-key all the unique elements in the set
     for(std::set<int>::iterator it=keys.begin(); it!=keys.end(); it++)
         ret.push_back(unkey(*it));
+
+    //debug
+    //printf("FastCache::surface_points()\n");
+    //for(unsigned int i=0; i<ret.size(); i++)
+    //    printf("v %f %f %f\n", ret[i].x(), ret[i].y(), ret[i].z());
+    //printf("End of FastCache::surface_points()\n");
 
     return ret;
 }
