@@ -41,10 +41,10 @@ INCLUDEPATH += /usr/local/include/noise
 LIBS += -L/usr/local/lib/ -lnoise
 
 # boost
-INCLUDEPATH += /opt/local/var/macports/software/boost/1.42.0_0+universal/opt/local/include
-LIBS += -L/opt/local/var/macports/software/boost/1.42.0_0+universal/opt/local/lib -lboost_program_options
-LIBS += -L/opt/local/var/macports/software/boost/1.42.0_0+universal/opt/local/lib -lboost_filesystem
-LIBS += -L/opt/local/var/macports/software/boost/1.42.0_0+universal/opt/local/lib -lboost_system
+INCLUDEPATH += /opt/local/include
+LIBS += -L/opt/local/lib -lboost_program_options
+LIBS += -L/opt/local/lib -lboost_filesystem
+LIBS += -L/opt/local/lib -lboost_system
 
 # Input
 HEADERS += src/AdvancedVolume.h \
