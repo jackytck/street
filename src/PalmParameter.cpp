@@ -154,3 +154,85 @@ std::vector <osg::Vec3> PalmParameter::getFrames()
 
     return ret;
 }
+
+std::vector <osg::Vec3> PalmParameter::getQuads(float aspect, bool debug, int debug_offset)
+{
+    std::vector <osg::Vec3> ret;
+    if(aspect <= 0.0f)
+        return ret;
+
+    std::vector <osg::Vec3> frames = getFrames();
+
+    //a. for each <head,tail> line, find its corresponding tangent on curve,
+    //these 3 vectors are used to get a 2D basis
+    for(unsigned int i=0; i<frames.size(); i+=2)
+    {
+        osg::Vec3 head = frames[i];
+        osg::Vec3 tail = frames[i+1];
+        osg::Vec3 tangent = getTangent(i/4);
+
+        //check basis, ignore if not valid
+        osg::Vec3 ht = tail - head;
+        float h = ht.length();
+        if(abs(ht * tangent) == h || h == 0.0f)
+        {
+            printf("PalmParameter::getQuads:parallel error");
+            continue;
+        }
+        float w = h / aspect;
+
+        //b. make the tangent orthogonal to ht to reduce texture distortion
+        ht.normalize();
+        tangent = (ht ^ tangent) ^ ht;
+        ht = ht * h;
+
+        //b--T--f
+        //|     |
+        //|  |  |
+        //|     |
+        //|  |  |   c. construct quad <a,b,e,f>
+        //|     |
+        //|  |  |
+        //|     |
+        //a--H--e
+        osg::Vec3 a, b, e, f;
+        a = head + tangent * 0.5f * w;
+        b = a + ht;
+        e = head - tangent * 0.5f * w;
+        f = e + ht;
+
+        ret.push_back(a);
+        ret.push_back(b);
+        ret.push_back(e);
+        ret.push_back(f);
+
+        //d. print out each quad as obj face
+        if(debug)
+        {
+            printf("v %f %f %f\n", a.x(), a.y(), a.z());
+            printf("v %f %f %f\n", b.x(), b.y(), b.z());
+            printf("v %f %f %f\n", f.x(), f.y(), f.z());
+            printf("v %f %f %f\n", e.x(), e.y(), e.z());
+            int cnt = debug_offset + 2 * i;
+            printf("f %d %d %d %d\n", cnt+1, cnt+2, cnt+3, cnt+4);
+        }
+    }
+
+    return ret;
+}
+
+std::vector <osg::Vec2> PalmParameter::getTexCoords()
+{
+    std::vector <osg::Vec2> ret;
+
+    ret.resize(onCurveSize() * 8);
+    for(unsigned int i=0; i<ret.size(); i+=4)
+    {
+        ret[i] = osg::Vec2(0, 0);
+        ret[i+1] = osg::Vec2(0, 1);
+        ret[i+2] = osg::Vec2(1, 0);
+        ret[i+3] = osg::Vec2(1, 1);
+    }
+
+    return ret;
+}

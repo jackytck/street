@@ -386,7 +386,7 @@ void GenericLeafGrower::grow_palm2()
     */
 
     //f. tile square planes along each bezier path, ab:ef = 2.5:1
-    int debug_cnt = 1;
+    int debug_cnt = 0;
     for(int l=0; l<level; l++)
     {
         for(int i=0; i<no_leaf; i++)
@@ -399,6 +399,9 @@ void GenericLeafGrower::grow_palm2()
             if(true || l==0 && i==0)
             {
                 pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, 40);
+                pp.getQuads(10.0f, true, debug_cnt);
+                debug_cnt += 320;
+                /*
                 unsigned int n = pp.onCurveSize();
                 for(unsigned int j=0; j<n; j++)
                 {
@@ -406,7 +409,7 @@ void GenericLeafGrower::grow_palm2()
                     osg::Vec3 tail1 = pp.getFrameAt(j);
                     osg::Vec3 tail2 = pp.getFrameAt(j, true);
 
-                    //debug as lines
+                    //debug as obj lines
                     printf("v %f %f %f\n", head.x(), head.y(), head.z());
                     printf("v %f %f %f\n", tail1.x(), tail1.y(), tail1.z());
                     printf("l %d %d\n", debug_cnt, debug_cnt+1);
@@ -416,6 +419,7 @@ void GenericLeafGrower::grow_palm2()
 
                     debug_cnt += 4;
                 }
+                */
             }
 
             /*

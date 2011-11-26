@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <osg/Vec3>
+#include <osg/Vec2>
 
 /* A helper class for providing Palm tree parameters
  * Flow: a backbone is drawn and exported from Blender,
@@ -52,6 +53,18 @@ class PalmParameter
          */
         std::vector <osg::Vec3> getFrames();
 
+        /* get all the leaf quads of this Bezier curve
+         * aspect: texure height divided by texture width
+         * debug: if true, stdout obj faces for all quads
+         * debug_offset: the vertex offset for referencing vertices in obj
+         */
+        std::vector <osg::Vec3> getQuads(float aspect, bool debug = false, int debug_offset = 0);
+
+        /* get all the corresponding texture coordinates
+         * of getQuads
+         */
+        std::vector <osg::Vec2> getTexCoords();
+
     protected:
         /*
          * for setting up total culmulative distance of sample element
@@ -59,7 +72,7 @@ class PalmParameter
         void setupKeyFrames();
 
         /*
-         * tangent at k-th key or step
+         * unit tangent at k-th key or step
          */
         osg::Vec3 getTangent(int k);
 
