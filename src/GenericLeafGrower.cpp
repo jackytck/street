@@ -349,44 +349,21 @@ void GenericLeafGrower::grow_palm2()
     }
 
 
-    //d. interpolate key-frames by hard-coded palm parameter
-    PalmParameter pp;
-
-    /*
-    //c. infer the width of a leaf
-    std::vector <osg::Vec3> on_curve = Transformer::interpolate_bezier_2(ter, sec_pts[0], third_pts[0]);
-    float inter_width = Transformer::average_inter_dist(on_curve);
-
-    //d. infer the starting vertices of each curve
-    std::vector <osg::Vec3> start_as;
-    std::vector <osg::Vec3> start_bs;
-    thetha = 0.0f;
-
-    for(int l=0; l<level; l++)
-    {
-        for(int i=0; i<no_leaf; i++)
-        {
-            start_as.push_back(u * inter_width * 1.20f * cos(thetha+M_PI/2) + v * inter_width * 1.20f * sin(thetha+M_PI/2) + ter);
-            start_bs.push_back(u * inter_width * 1.20f * cos(thetha-M_PI/2) + v * inter_width * 1.20f * sin(thetha-M_PI/2) + ter);
-
-            thetha += 1.0f / no_leaf * 2 * M_PI;
-        }
-
-        thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
-    }
-
-    //e. read width and height of input texture, which represents a single leaf now
+    //c. read width and height of input texture (which represents a single leaf now) to compute its aspect ratio, 
     QImage img(_generic_texure.c_str());
-    if(img.isNull())
+    if(img.isNull() || img.width() == 0 || img.height() == 0)
     {
         printf("GenericLeafGrower::grow_palm2():_img(%s) error\n", _generic_texure.c_str());
         return;
     }
-    int t_w = img.width(), t_h = img.height();
-    */
+    float aspect = img.height() / img.width();
 
-    //f. tile square planes along each bezier path, ab:ef = 2.5:1
+    //d. get quads and tex coords for each bezier curve
+    PalmParameter pp;//this class interpolate all the palm parameters
+    int density = 40;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
     int debug_cnt = 0;
+    bool debug = false;
+
     for(int l=0; l<level; l++)
     {
         for(int i=0; i<no_leaf; i++)
@@ -395,63 +372,19 @@ void GenericLeafGrower::grow_palm2()
             osg::Vec3 ctr_pt2 = sec_pts[l*no_leaf + i];
             osg::Vec3 ctr_pt3 = third_pts[l*no_leaf + i];
 
+            pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, density);
+            std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
+            std::vector <osg::Vec2> tex = pp.getTexCoords();
 
-            if(true || l==0 && i==0)
-            {
-                pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, 40);
-                pp.getQuads(10.0f, true, debug_cnt);
-                debug_cnt += 320;
-                /*
-                unsigned int n = pp.onCurveSize();
-                for(unsigned int j=0; j<n; j++)
-                {
-                    osg::Vec3 head = pp.getOnCurve(j);
-                    osg::Vec3 tail1 = pp.getFrameAt(j);
-                    osg::Vec3 tail2 = pp.getFrameAt(j, true);
-
-                    //debug as obj lines
-                    printf("v %f %f %f\n", head.x(), head.y(), head.z());
-                    printf("v %f %f %f\n", tail1.x(), tail1.y(), tail1.z());
-                    printf("l %d %d\n", debug_cnt, debug_cnt+1);
-                    printf("v %f %f %f\n", head.x(), head.y(), head.z());
-                    printf("v %f %f %f\n", tail2.x(), tail2.y(), tail2.z());
-                    printf("l %d %d\n", debug_cnt+2, debug_cnt+3);
-
-                    debug_cnt += 4;
-                }
-                */
-            }
-
-            /*
-            osg::Vec3 a = start_as[l*no_leaf + i];
-            osg::Vec3 b = start_bs[l*no_leaf + i];
-
-            std::vector <osg::Vec3> leafs = Transformer::tile_plane_along_path(ctr_pt1, ctr_pt2, ctr_pt3, a, b);
-            std::vector <osg::Vec2> tex = Transformer::texture_coords_palm(leafs, t_w, t_h);
+            debug_cnt += density * 8;
 
             for(unsigned int j=0; j<leafs.size(); j++)
             {
                 _all_v.push_back(leafs[j]);
                 _all_tex.push_back(tex[j]);
             }
-            */
         }
     }
-
-    /*
-    //debug
-    if(false)
-    {
-        for(unsigned int i=0; i<sec_pts.size(); i++)
-            printf("v %f %f %f\n", sec_pts[i].x(), sec_pts[i].y(), sec_pts[i].z());
-
-        for(unsigned int i=0; i<third_pts.size(); i++)
-            printf("v %f %f %f\n", third_pts[i].x(), third_pts[i].y(), third_pts[i].z());
-
-        for(unsigned int i=0; i<_all_v.size(); i++)
-            printf("v %f %f %f\n", _all_v[i].x(), _all_v[i].y(), _all_v[i].z());
-    }
-    */
 
     return;
 }
