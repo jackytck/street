@@ -32,7 +32,7 @@ lib_key=(a.bdlsge b.bdlsge c.bdlsge d.bdlsge)
 # generic leaf texture
 #gleaf='./res/leaf1.png'
 # palm
-gleaf='./res/palm_leaf.png'
+gleaf='./res/palm_leaf4.png'
 
 # default directories
 library='./library'

@@ -85,7 +85,7 @@ void PalmParameter::setBezier(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, in
     }
 
     if(_keys_dist != 0.0f && _target_dist != 0.0f)
-        _scale = _target_dist / _keys_dist;
+        _scale = _target_dist / _keys_dist * 0.65f;
 }
 
 unsigned int PalmParameter::onCurveSize()
@@ -184,6 +184,7 @@ std::vector <osg::Vec3> PalmParameter::getQuads(float aspect, bool debug, int de
         //b. make the tangent orthogonal to ht to reduce texture distortion
         ht.normalize();
         tangent = (ht ^ tangent) ^ ht;
+        tangent.normalize();
         ht = ht * h;
 
         //b--T--f

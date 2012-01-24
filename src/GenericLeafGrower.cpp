@@ -319,9 +319,9 @@ void GenericLeafGrower::grow_palm2()
     u.normalize();
     osg::Vec3 v = normal ^ u;
 
-    int level = 3;
-    int no_leaf = 5;
-    float plane_r = height * 0.25f;
+    int level = 2;
+    int no_leaf = 4;
+    float plane_r = height * 0.1f;
     float thetha = 0.0f;
 
     //b. infer list of 2nd and 3rd control points (1st control point is shared by all)
@@ -333,8 +333,8 @@ void GenericLeafGrower::grow_palm2()
             osg::Vec3 ctr_pt_2 = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
             sec_pts.push_back(ctr_pt_2);
 
-            float drop = l > 0 ? -0.05f : 0.15f;
-            float extend = l > 0 ? 1.1f : 1.2f;
+            float drop = l > 0 ? -0.15f : -0.17f;
+            float extend = l > 0 ? 2.1f : 2.8f;
 
             osg::Vec3 ctr_pt_3 = ctr_pt_2 - normal * height * drop + (ctr_pt_2 - plane_pt) * extend;
             third_pts.push_back(ctr_pt_3);
@@ -343,9 +343,10 @@ void GenericLeafGrower::grow_palm2()
         }
 
         //higher and closer to the main trunk for the next level
-        plane_r *= (l == level-2) ? 0.6f : 0.80f;
+        plane_r *= (l == level-2) ? 0.8f : 0.80f;
         plane_pt = ter + normal * (plane_pt - ter).length() * (1.2f + float(l)/level + (l == level-2 ? 0.4f : 0.0f));
         thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
+        no_leaf -= 2;
     }
 
 
@@ -356,33 +357,30 @@ void GenericLeafGrower::grow_palm2()
         printf("GenericLeafGrower::grow_palm2():_img(%s) error\n", _generic_texure.c_str());
         return;
     }
-    float aspect = img.height() / img.width();
+    float aspect = float(img.height()) / img.width();
 
     //d. get quads and tex coords for each bezier curve
     PalmParameter pp;//this class interpolate all the palm parameters
-    int density = 40;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
+    int density = 25;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
     int debug_cnt = 0;
     bool debug = false;
-
-    for(int l=0; l<level; l++)
+    
+    for(unsigned int i=0; i<sec_pts.size(); i++)
     {
-        for(int i=0; i<no_leaf; i++)
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+
+        pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, density);
+        std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
+        std::vector <osg::Vec2> tex = pp.getTexCoords();
+
+        debug_cnt += density * 8;
+
+        for(unsigned int j=0; j<leafs.size(); j++)
         {
-            osg::Vec3 ctr_pt1 = ter;
-            osg::Vec3 ctr_pt2 = sec_pts[l*no_leaf + i];
-            osg::Vec3 ctr_pt3 = third_pts[l*no_leaf + i];
-
-            pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, density);
-            std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
-            std::vector <osg::Vec2> tex = pp.getTexCoords();
-
-            debug_cnt += density * 8;
-
-            for(unsigned int j=0; j<leafs.size(); j++)
-            {
-                _all_v.push_back(leafs[j]);
-                _all_tex.push_back(tex[j]);
-            }
+            _all_v.push_back(leafs[j]);
+            _all_tex.push_back(tex[j]);
         }
     }
 
