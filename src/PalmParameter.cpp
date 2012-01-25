@@ -72,9 +72,25 @@ osg::Vec3 PalmParameter::getTangent(int k)
     return ret;
 }
 
-void PalmParameter::setBezier(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, int steps)
+void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, int steps)
 {
     _on_curve = Transformer::interpolate_bezier_2(ctr1, ctr2, ctr3, steps);
+
+    _target_dist = 0.0f;
+    for(unsigned int i=0; i<_on_curve.size()-1; i++)
+    {
+        osg::Vec3 a = _on_curve[i];
+        osg::Vec3 b = _on_curve[i+1];
+        _target_dist += (a - b).length();
+    }
+
+    if(_keys_dist != 0.0f && _target_dist != 0.0f)
+        _scale = _target_dist / _keys_dist * 0.65f;
+}
+
+void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, int steps)
+{
+    _on_curve = Transformer::interpolate_bezier_3(ctr1, ctr2, ctr3, ctr4, steps);
 
     _target_dist = 0.0f;
     for(unsigned int i=0; i<_on_curve.size()-1; i++)

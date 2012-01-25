@@ -29,7 +29,12 @@ class PalmParameter
          * ctr3: control point 3
          * steps: number of interpolation
          */
-        void setBezier(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, int steps=22);
+        void setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, int steps=22);
+
+        /*
+         * the cubic version
+         */
+        void setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, int steps=22);
 
         /* current size of _on_curve
          * for looping getFrameAt()

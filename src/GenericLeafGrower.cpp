@@ -1,5 +1,6 @@
 #include "GenericLeafGrower.h"
 #include <queue>
+#include <stack>
 #include "osgModeler.h"
 #include "Transformer.h"
 #include <fstream>
@@ -371,7 +372,117 @@ void GenericLeafGrower::grow_palm2()
         osg::Vec3 ctr_pt2 = sec_pts[i];
         osg::Vec3 ctr_pt3 = third_pts[i];
 
-        pp.setBezier(ctr_pt1, ctr_pt2, ctr_pt3, density);
+        pp.setBezierQuadratic(ctr_pt1, ctr_pt2, ctr_pt3, density);
+        std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
+        std::vector <osg::Vec2> tex = pp.getTexCoords();
+
+        debug_cnt += density * 8;
+
+        for(unsigned int j=0; j<leafs.size(); j++)
+        {
+            _all_v.push_back(leafs[j]);
+            _all_tex.push_back(tex[j]);
+        }
+    }
+
+    return;
+}
+
+/* the idea is to let the tree data-structure represent both the branching
+ * structure and the leaf arrangements via Bezier control points
+ */
+void GenericLeafGrower::grow_palm3()
+{
+    if(!_root)
+        return;
+
+    //todo: fine tune other parameters by configs in settings
+    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
+	if(_verbose)
+		printf("Current leaf-scale is %f.\n", leaf_scale);
+
+    //checking: assume its geometry is a stick, plus a set of curly branches representing the cubic Bezier curves
+    //the terminal node is defined as the first node whose child count is larger than 1
+    BDLSkeletonNode *terminal = _root;
+    while(!terminal->_children.empty())
+    {
+        if(terminal->_children.size() > 1)
+            break;
+        terminal = terminal->_children[0];
+    }
+    if(terminal == _root || terminal->_children.empty())
+    {
+        printf("GenericLeafGrower::grow_palm3():incorrect input skeleton\n");
+        return;
+    }
+    _all_v.clear();
+    _all_tex.clear();
+
+    //a. dfs from terminal and infer set of cubic bezier control points
+    //1 st control point is the terminal node and is shared by all curves
+    osg::Vec3 ter = Transformer::toVec3(terminal);
+    std::vector <osg::Vec3> sec_pts, third_pts, forth_pts;
+
+    std::vector <osg::Vec3> tmp_list;
+    std::stack <BDLSkeletonNode *> Stack;
+    Stack.push(terminal);
+    while(!Stack.empty())
+    {
+        BDLSkeletonNode *top = Stack.top();
+        Stack.pop();
+
+        //assume the structure is fixed and defined as:
+        //       __
+        //      /
+        // ter -----
+        //      \__
+        if(top != terminal)
+            tmp_list.push_back(Transformer::toVec3(top));
+
+        if(top->_children.empty())
+        {
+            if(tmp_list.size() >= 3)
+            {
+                sec_pts.push_back(tmp_list[0]);
+                third_pts.push_back(tmp_list[tmp_list.size()-2]);
+                forth_pts.push_back(tmp_list[tmp_list.size()-1]);
+                tmp_list.clear();
+            }
+        }
+
+        for(unsigned int i=0; i<top->_children.size(); i++)
+            Stack.push(top->_children[i]);
+    }
+
+    if(sec_pts.empty())
+    {
+        printf("GenericLeafGrower::grow_palm3():incorrect input skeleton\n");
+        return;
+    }
+
+    //b. read width and height of input texture (which represents a single leaf now) to compute its aspect ratio, 
+    QImage img(_generic_texure.c_str());
+    if(img.isNull() || img.width() == 0 || img.height() == 0)
+    {
+        printf("GenericLeafGrower::grow_palm2():_img(%s) error\n", _generic_texure.c_str());
+        return;
+    }
+    float aspect = float(img.height()) / img.width();
+
+    //c. get quads and tex coords for each bezier curve
+    PalmParameter pp;//this class interpolate all the palm parameters
+    int density = 25;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
+    int debug_cnt = 0;
+    bool debug = false;
+    
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+        osg::Vec3 ctr_pt4 = forth_pts[i];
+
+        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4, density);
         std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
         std::vector <osg::Vec2> tex = pp.getTexCoords();
 

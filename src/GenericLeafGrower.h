@@ -70,6 +70,12 @@ class GenericLeafGrower
          */
         void grow_palm2();
 
+        /* instead of hard-coding the Bezier curve in grow_palm2(),
+         * assume the outer part of the input skeleton represents sets of cubic Bezier curves,
+         * the main skeleton stills represent the physical branch
+         */
+        void grow_palm3();
+
 		/* output the grown leaves for external use, e.g. Blender
 		 */
 		void save(std::string path);

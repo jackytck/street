@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
 				leaf_grower.set_verbose(verbose);
 				leaf_grower.setup(skeleton, in_gleaf, leaf_scale);
 
-                leaf_grower.grow_palm2();
+                leaf_grower.grow_palm3();
                 leaf_grower.save(out_realistic_leaf);
             }
 			//conversion: bdlsg laser ==> realistic leaves
