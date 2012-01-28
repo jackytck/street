@@ -72,8 +72,9 @@ osg::Vec3 PalmParameter::getTangent(int k)
     return ret;
 }
 
-void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, int steps)
+void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3)
 {
+    int steps = (ctr3 - ctr1).length() * 3;
     _on_curve = Transformer::interpolate_bezier_2(ctr1, ctr2, ctr3, steps);
 
     _target_dist = 0.0f;
@@ -88,8 +89,17 @@ void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3
         _scale = _target_dist / _keys_dist * 0.65f;
 }
 
-void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, int steps)
+void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4)
 {
+    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
+    float slop = -1.0f;
+    if(ctr4.x()!=ctr1.x())
+        slop = fabs((ctr4.z()-ctr1.z()) / (ctr4.x()-ctr1.x()));
+    if(slop > 2)
+        steps -= 5;
+    else if(slop < 1)//increase interpolation if it is flatter
+        steps += 15;
+
     _on_curve = Transformer::interpolate_bezier_3(ctr1, ctr2, ctr3, ctr4, steps);
 
     _target_dist = 0.0f;

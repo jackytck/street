@@ -372,7 +372,7 @@ void GenericLeafGrower::grow_palm2()
         osg::Vec3 ctr_pt2 = sec_pts[i];
         osg::Vec3 ctr_pt3 = third_pts[i];
 
-        pp.setBezierQuadratic(ctr_pt1, ctr_pt2, ctr_pt3, density);
+        pp.setBezierQuadratic(ctr_pt1, ctr_pt2, ctr_pt3);
         std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
         std::vector <osg::Vec2> tex = pp.getTexCoords();
 
@@ -471,9 +471,6 @@ void GenericLeafGrower::grow_palm3()
 
     //c. get quads and tex coords for each bezier curve
     PalmParameter pp;//this class interpolate all the palm parameters
-    int density = 25;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
-    int debug_cnt = 0;
-    bool debug = false;
     
     for(unsigned int i=0; i<sec_pts.size(); i++)
     {
@@ -482,11 +479,9 @@ void GenericLeafGrower::grow_palm3()
         osg::Vec3 ctr_pt3 = third_pts[i];
         osg::Vec3 ctr_pt4 = forth_pts[i];
 
-        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4, density);
-        std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
+        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4);
+        std::vector <osg::Vec3> leafs = pp.getQuads(aspect);
         std::vector <osg::Vec2> tex = pp.getTexCoords();
-
-        debug_cnt += density * 8;
 
         for(unsigned int j=0; j<leafs.size(); j++)
         {
