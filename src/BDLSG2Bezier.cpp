@@ -1,4 +1,5 @@
 #include "BDLSG2Bezier.h"
+#include "Transformer.h"
 #include <queue>
 #include <algorithm>
 
@@ -168,6 +169,222 @@ void BDLSG2Bezier::output(BDLSkeletonNode *root)
     }
 
     //BDLSkeletonNode::delete_this(root);
+}
+
+void BDLSG2Bezier::blender_test()
+{
+    osg::Vec3 a(-1.236f, 0.775f, 9.585f);
+    osg::Vec3 b(-1.811f, 1.405f, 11.045f);
+    osg::Vec3 c(-3.166f, 3.035f, 12.412f);
+    osg::Vec3 d(-4.686f, 3.875f, 12.137f);
+
+    std::vector <osg::Vec3> on_curve = Transformer::interpolate_bezier_3(a, b, c, d);
+    for(unsigned int i=0; i<on_curve.size(); i++)
+        printf("v %f %f %f\n", on_curve[i].x(), on_curve[i].y(), on_curve[i].z());
+    printf("hihi\n");
+
+    std::vector <osg::Vec3> ctrs;
+    ctrs.push_back(a);
+    ctrs.push_back(b);
+    ctrs.push_back(c);
+    ctrs.push_back(d);
+
+    ctrs = seg2BezTriple(ctrs);
+    if(!ctrs.empty())
+    {
+        printf("%d\n", int(ctrs.size()) / 3);
+        for(unsigned int j=0; j<ctrs.size(); j+=3)
+        {
+            osg::Vec3 a, b, c;
+            a = ctrs[j];
+            b = ctrs[j+1];
+            c = ctrs[j+2];
+
+            printf("%f %f %f %f %f %f %f %f %f\n", a.x(), a.y(), a.z(), b.x(), b.y(), b.z(), c.x(), c.y(), c.z());
+        }
+    }
+}
+
+void BDLSG2Bezier::output_palm(BDLSkeletonNode *root)
+{
+    if(!root)
+        return;
+
+    //a. check if the palm data structure is valid
+    //assume the palm has at least 2 long branching leaves
+    //                ____
+    //               /
+    // root ------ ter -----
+    //              \____
+    BDLSkeletonNode *terminal = root;
+    while(!terminal->_children.empty())
+    {
+        if(terminal->_children.size() > 1)
+            break;
+        terminal = terminal->_children[0];
+    }
+    if(terminal == root || terminal->_children.empty())
+    {
+        printf("BDLSG2Bezier::output_palm():incorrect input skeleton\n");
+        return;
+    }
+
+    //b. book keeping the nodes on the main branch
+    std::vector <osg::Vec3> main_branch;
+    BDLSkeletonNode *node = root;
+    while(node != terminal)
+    {
+        main_branch.push_back(Transformer::toVec3(node));
+        node = node->_children[0];
+
+        if(node == terminal)
+        {
+            osg::Vec3 N = Transformer::toVec3(node);
+
+            //extend a little bit for gluing
+            if(!main_branch.empty())
+            {
+                osg::Vec3 last = main_branch[main_branch.size()-1];
+                osg::Vec3 translate = N - last;
+                float extend = translate.length() * 0.05f;
+                translate.normalize();
+                N += translate * extend;
+            }
+                
+            main_branch.push_back(N);
+        }
+    }
+
+    //c. store the sets of 4 Bezier control points
+    std::vector <osg::Vec3> leaf_branch;
+    osg::Vec3 ter = Transformer::toVec3(terminal);
+    std::vector <osg::Vec3> sec_pts, third_pts, forth_pts;
+
+    //dfs
+    std::vector <osg::Vec3> tmp_list;
+    std::stack <BDLSkeletonNode *> Stack;
+    Stack.push(terminal);
+    while(!Stack.empty())
+    {
+        BDLSkeletonNode *top = Stack.top();
+        Stack.pop();
+
+        //assume the structure is fixed and defined as:
+        //       __
+        //      /
+        // ter -----
+        //      \__
+        if(top != terminal)
+            tmp_list.push_back(Transformer::toVec3(top));
+
+        //one way road, end if we reach the leaf
+        if(top->_children.empty())
+        {
+            //ignore the branch if it does not have 4 control points
+            if(tmp_list.size() >= 3)
+            {
+                sec_pts.push_back(tmp_list[0]);
+                third_pts.push_back(tmp_list[tmp_list.size()-2]);
+                forth_pts.push_back(tmp_list[tmp_list.size()-1]);
+                tmp_list.clear();
+            }
+        }
+
+        for(unsigned int i=0; i<top->_children.size(); i++)
+            Stack.push(top->_children[i]);
+    }
+
+    if(sec_pts.empty())
+    {
+        printf("BDLSG2Bezier::output_palm():incorrect input skeleton\n");
+        return;
+    }
+
+    //d. infer palm-specific radii
+    //each node of a leaf-branch has the same radius,
+    //which is equal to its total length times a constant
+    //radius of main branch is equal to the (max of all the leaf branches' radii) * 1.618
+    const double MassThicknessRatio = 0.05;
+    std::vector <double> radii;//1 radius for each branch
+    double main_branch_radius = 0.0; 
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+        osg::Vec3 ctr_pt4 = forth_pts[i];
+
+        float length = (ctr_pt2-ctr_pt1).length() + (ctr_pt3-ctr_pt2).length() + (ctr_pt4-ctr_pt3).length();
+        double radius = length * MassThicknessRatio;
+        radii.push_back(radius);
+        main_branch_radius = std::max(main_branch_radius, radius);
+    }
+    main_branch_radius *= 3.618;
+
+    //e. write results, total number of branches first
+    fprintf(_out, "%d\n", 1 + int(sec_pts.size()));
+
+    //f. output main branch
+    std::vector <osg::Vec3> main_branch_ctrs = segment_controls(main_branch, osg::Vec3(0.0f, 0.0f, 0.0f));
+    main_branch_ctrs = seg2BezTriple(main_branch_ctrs);
+    if(!main_branch_ctrs.empty())
+    {
+        fprintf(_out, "%d\n", int(main_branch_ctrs.size()) / 3);
+        for(unsigned int i=0; i<main_branch_ctrs.size(); i+=3)
+        {
+            osg::Vec3 a, b, c;
+            a = main_branch_ctrs[i];
+            b = main_branch_ctrs[i+1];
+            c = main_branch_ctrs[i+2];
+
+            fprintf(_out, "%f %f %f %f %f %f %f %f %f\n", a.x(), a.y(), a.z(), b.x(), b.y(), b.z(), c.x(), c.y(), c.z());
+        }
+        for(unsigned int i=0; i<main_branch_ctrs.size()/3; i++)
+        {
+            fprintf(_out, "%f\n", main_branch_radius);
+        }
+    }
+
+    //g. output leaf branch
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+        osg::Vec3 ctr_pt4 = forth_pts[i];
+
+        //cannot arbitrarily move anything here because it will misaligned with the leaves
+        //move away the first node for blender to glue it on tail of main branch
+        //osg::Vec3 translate = ctr_pt2 - ctr_pt1;
+        //float translate_len = translate.length() * 0.05f;
+        //translate.normalize();
+        //ctr_pt1 += translate * translate_len;
+
+        std::vector <osg::Vec3> path;
+        path.push_back(ctr_pt1);
+        path.push_back(ctr_pt2);
+        path.push_back(ctr_pt3);
+        path.push_back(ctr_pt4);
+
+        path = seg2BezTriple(path);
+        if(!path.empty())
+        {
+            fprintf(_out, "%d\n", int(path.size()) / 3);
+            for(unsigned int j=0; j<path.size(); j+=3)
+            {
+                osg::Vec3 a, b, c;
+                a = path[j];
+                b = path[j+1];
+                c = path[j+2];
+
+                fprintf(_out, "%f %f %f %f %f %f %f %f %f\n", a.x(), a.y(), a.z(), b.x(), b.y(), b.z(), c.x(), c.y(), c.z());
+            }
+            for(unsigned int j=0; j<path.size()/3; j++)
+            {
+                fprintf(_out, "%f\n", radii[i]);
+            }
+        }
+    }
 }
 
 void BDLSG2Bezier::output_xiao(BDLSkeletonNode *root)

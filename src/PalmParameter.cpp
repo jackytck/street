@@ -165,16 +165,34 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
 std::vector <osg::Vec3> PalmParameter::getFrames()
 {
     std::vector <osg::Vec3> ret;
+    if(_on_curve.empty())
+        return ret;
 
-    for(unsigned int i=0; i<_on_curve.size(); i++)
+    float len = 0.0f;
+    osg::Vec3 last = _on_curve[0];
+    for(unsigned int i=1; i<_on_curve.size(); i++)
+    {
+        len += (_on_curve[i] - last).length();
+        last = _on_curve[i];
+    }
+    float correction = len * 0.045f;//empirical
+
+    unsigned int on_curve_size = _on_curve.size();
+    for(unsigned int i=0; i<on_curve_size; i++)
     {
         osg::Vec3 tail1 = getFrameAt(i);
         osg::Vec3 tail2 = getFrameAt(i, true);
         osg::Vec3 cur = _on_curve[i];
 
-        ret.push_back(cur);
+        //to fix the misalignment problem caused by the connected mesh
+        //but only apply to the second half of the branch
+        osg::Vec3 translate = cur - (tail1 + tail2)*0.5f;
+        translate.normalize();
+        translate = translate * (i / float(on_curve_size)) * correction;
+
+        ret.push_back(cur + translate);
         ret.push_back(tail1);
-        ret.push_back(cur);
+        ret.push_back(cur + translate);
         ret.push_back(tail2);
     }
 

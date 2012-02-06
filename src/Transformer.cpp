@@ -1565,7 +1565,7 @@ std::vector <osg::Vec3> Transformer::interpolate_bezier_2(osg::Vec3 a, osg::Vec3
 std::vector <osg::Vec3> Transformer::interpolate_bezier_3(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, osg::Vec3 d, int time)
 {
     std::vector <osg::Vec3> ret;
-    for(int i=0; i<time; i++)
+    for(int i=0; i<=time; i++)
     {
         float t = float(i)/time;
         osg::Vec3 cur = a*(1-t)*(1-t)*(1-t) + b*3*(1-t)*(1-t)*t + c*3*(1-t)*t*t + d*t*t*t;

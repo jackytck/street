@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	bool is_palm_leaves = false;//grow palm leaves or not
 
 	//outputs
-	std::string out_bdlsg(""), out_bezier(""), out_xiao(""), out_cache(""), out_leaf(""), out_generic_leaf(""), out_realistic_leaf("");
+	std::string out_bdlsg(""), out_bezier(""), out_bezier_palm(""), out_xiao(""), out_cache(""), out_leaf(""), out_generic_leaf(""), out_realistic_leaf("");
 
 	//program options
 	po::options_description desc("Options");
@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
 		("save-cache,c", po::value <std::string>(&out_cache), "Cache the cloud points")
 		("output-bdlsg,b", po::value <std::string>(&out_bdlsg), "Output as BDLSkeletonGraph")
 		("output-bezier,o", po::value <std::string>(&out_bezier), "Output as Blender's BezierTriple(s)")
+		("output-bezier-palm", po::value <std::string>(&out_bezier_palm), "Output palm as Blender's BezierTriple(s)")
 		("output-xiao", po::value <std::string>(&out_xiao), "Output as XiaoPeng obj format")
 		("input-bdlsg,G", po::value <std::string>(&in_bdlsg), "Input path of BDLSG for conversion")
 		("input_leaf,E", po::value <std::string>(&in_eleaf), "Input path of (Blender edited) leaves")
@@ -370,7 +371,7 @@ int main(int argc, char *argv[])
 		else
 		{
 			//conversion: bdlsg ==> blender's blezier
-			if(!in_bdlsg.empty() && (!out_bdlsg.empty() || !out_bezier.empty() || !out_xiao.empty()))
+			if(!in_bdlsg.empty() && (!out_bdlsg.empty() || !out_bezier.empty() || !out_xiao.empty() || !out_bezier_palm.empty()))
 			{
 				BDLSkeletonLoader loader;
 				loader.load_file(QString(in_bdlsg.c_str()));
@@ -400,7 +401,7 @@ int main(int argc, char *argv[])
 						BDLSkeletonNode::save_skeleton(skeleton, out_bdlsg.c_str());
 					}
 
-					//output blender
+					//output blender for non-palm trees
 					if(!out_bezier.empty())
 					{
 						if(verbose)
@@ -408,6 +409,15 @@ int main(int argc, char *argv[])
 						BDLSG2Bezier bezier(out_bezier.c_str());
 						bezier.output(skeleton);
 					}
+
+                    if(!out_bezier_palm.empty())
+                    {
+                        if(verbose)
+							printf("Root's radius is %f.\n", skeleton->_radius);
+                        BDLSG2Bezier bezier(out_bezier_palm.c_str());
+                        bezier.output_palm(skeleton);
+                        //bezier.blender_test();
+                    }
 
 					//output for XiaoPeng
 					if(!out_xiao.empty())
