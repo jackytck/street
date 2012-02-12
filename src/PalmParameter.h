@@ -19,7 +19,12 @@
 class PalmParameter
 {
     public:
-        PalmParameter();
+        /*
+         * noise: [0.0f, 1.0f]
+         * indicating the possible maximum percentage change of the leaf coordinates
+         * with respect to 25% of the distance between each key and key_frame pair
+         */
+        PalmParameter(float noise = 0.0f);
         ~PalmParameter();
 
         /*
@@ -88,6 +93,7 @@ class PalmParameter
         float _keys_dist;//length of the sample element, i.e. keys
         float _target_dist;//length of the target
         float _scale;//_target_dist / _keys_dist
+        float _noise;//randomness of the palm leaves
 };
 
 #endif

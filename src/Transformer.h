@@ -86,7 +86,7 @@ class Transformer
         /* convert spherical to cartesian
          * lat and lon are in degrees
          */
-        static inline osg::Vec3 spherical_to_cartesian(double r, double lat, double lon);
+        static osg::Vec3 spherical_to_cartesian(double r, double lat, double lon);
         static inline osg::Vec3 ellipsoid_to_cartesian(double rz, double rx, double ry, double lat, double lon);
 
         /* generate and append 4 leaf vertices to all_v

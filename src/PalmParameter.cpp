@@ -1,7 +1,7 @@
 #include "PalmParameter.h"
 #include "Transformer.h"
 
-PalmParameter::PalmParameter()
+PalmParameter::PalmParameter(float noise): _noise(noise)
 {
     //generated from palm_parser.py
     _keys = std::vector <osg::Vec3> (12, osg::Vec3(0, 0, 0));
@@ -33,6 +33,7 @@ PalmParameter::PalmParameter()
     _key_frames[11] = osg::Vec3(1.025884, 0.008749, -0.000005);
 
     setupKeyFrames();
+    srand(time(NULL));
 }
 
 PalmParameter::~PalmParameter()
@@ -147,13 +148,21 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     //b. interpolate the two coordinates
     osg::Vec3 interpolated = low_frame * (high - t) + high_frame * (t - low);
 
-    //c. find out the basis at k-th key
+    //c. add noise to frames
+    float max_displace = (low_frame - _keys[low]).length() * _scale * 0.25f * _noise;
+    float lat = rand() % 180 - 90.0f;
+    float lon = rand() % 360 - 180.0f;
+    osg::Vec3 displace = Transformer::spherical_to_cartesian(max_displace, lat, lon);
+    displace.x() = 0.0f;//do not displace along the tangent
+    interpolated += displace;
+
+    //d. find out the basis at k-th key
     osg::Vec3 tangent = getTangent(k);
     osg::Vec3 up(0, 0, 1);
     osg::Vec3 side = up ^ tangent;
     osg::Vec3 cur = _on_curve[k];
 
-    //d. scale to get final result
+    //e. scale to get final result
     if(mirror)
         ret = cur + (tangent * interpolated.x() + up * interpolated.y() - side * interpolated.z()) * _scale;
     else

@@ -470,7 +470,8 @@ void GenericLeafGrower::grow_palm3()
     float aspect = float(img.height()) / img.width();
 
     //c. get quads and tex coords for each bezier curve
-    PalmParameter pp;//this class interpolate all the palm parameters
+    float noise = 0.5f;
+    PalmParameter pp(noise);//this class interpolate all the palm parameters
     
     for(unsigned int i=0; i<sec_pts.size(); i++)
     {
