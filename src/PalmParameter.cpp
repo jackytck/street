@@ -95,7 +95,7 @@ void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr
     int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
     float slop = -1.0f;
     if(ctr4.x()!=ctr1.x())
-        slop = fabs((ctr4.z()-ctr1.z()) / (ctr4.x()-ctr1.x()));
+        slop = (ctr4.z()-ctr1.z()) / fabs(ctr4.x()-ctr1.x());//don't decrease steps if it's heading downwards
     if(slop > 2)
         steps -= 5;
     else if(slop < 1)//increase interpolation if it is flatter
