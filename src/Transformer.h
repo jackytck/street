@@ -86,7 +86,7 @@ class Transformer
         /* convert spherical to cartesian
          * lat and lon are in degrees
          */
-        static inline osg::Vec3 spherical_to_cartesian(double r, double lat, double lon);
+        static osg::Vec3 spherical_to_cartesian(double r, double lat, double lon);
         static inline osg::Vec3 ellipsoid_to_cartesian(double rz, double rx, double ry, double lat, double lon);
 
         /* generate and append 4 leaf vertices to all_v
@@ -289,6 +289,10 @@ class Transformer
         /* interpolate the quadratic bezier curve
          */
         static std::vector <osg::Vec3> interpolate_bezier_2(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, int time = 11);
+
+        /* interpolate the cubic bezier curve
+         */
+        static std::vector <osg::Vec3> interpolate_bezier_3(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, osg::Vec3 d, int time = 11);
 
         /* given 3 points a,b,c, construct d,e such that abde is a rectangle with width w lying on the plane
          * defined by a,b,c and {c,d,e} are on the same side (with respect to a,b)

@@ -1,9 +1,11 @@
 #include "GenericLeafGrower.h"
 #include <queue>
+#include <stack>
 #include "osgModeler.h"
 #include "Transformer.h"
 #include <fstream>
 #include <QImage>
+#include "PalmParameter.h"
 
 GenericLeafGrower::GenericLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
@@ -280,6 +282,213 @@ void GenericLeafGrower::grow_palm()
 
         for(unsigned int i=0; i<_all_v.size(); i++)
             printf("v %f %f %f\n", _all_v[i].x(), _all_v[i].y(), _all_v[i].z());
+    }
+
+    return;
+}
+
+void GenericLeafGrower::grow_palm2()
+{
+    if(!_root)
+        return;
+
+    //todo: fine tune other parameters by configs in settings
+    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
+	if(_verbose)
+		printf("Current leaf-scale is %f.\n", leaf_scale);
+
+    //checking: assume its geometry is a stick, otherwise just choose the first terminal node
+    BDLSkeletonNode *terminal = _root;
+    while(!terminal->_children.empty())
+        terminal = terminal->_children[0];
+    if(terminal == _root)
+    {
+        printf("GenericLeafGrower::grow_palm2():incorrect input skeleton\n");
+        return;
+    }
+    _all_v.clear();
+    _all_tex.clear();
+
+    //a. setup frame and parameters for quadratic bezier curvers
+    osg::Vec3 ter = Transformer::toVec3(terminal);
+    osg::Vec3 normal = ter - Transformer::toVec3(terminal->_prev);
+    normal.normalize();
+    float height = terminal->dist(_root);
+    osg::Vec3 plane_pt = ter + normal * height * 0.20f;
+
+    osg::Vec3 u(normal.y(), -normal.x(), 0.0f);
+    u.normalize();
+    osg::Vec3 v = normal ^ u;
+
+    int level = 2;
+    int no_leaf = 4;
+    float plane_r = height * 0.1f;
+    float thetha = 0.0f;
+
+    //b. infer list of 2nd and 3rd control points (1st control point is shared by all)
+    std::vector <osg::Vec3> sec_pts, third_pts;
+    for(int l=0; l<level; l++)
+    {
+        for(int i=0; i<no_leaf; i++)
+        {
+            osg::Vec3 ctr_pt_2 = u * plane_r * cos(thetha) + v * plane_r * sin(thetha) + plane_pt;
+            sec_pts.push_back(ctr_pt_2);
+
+            float drop = l > 0 ? -0.15f : -0.17f;
+            float extend = l > 0 ? 2.1f : 2.8f;
+
+            osg::Vec3 ctr_pt_3 = ctr_pt_2 - normal * height * drop + (ctr_pt_2 - plane_pt) * extend;
+            third_pts.push_back(ctr_pt_3);
+
+            thetha += 1.0f / no_leaf * 2 * M_PI;
+        }
+
+        //higher and closer to the main trunk for the next level
+        plane_r *= (l == level-2) ? 0.8f : 0.80f;
+        plane_pt = ter + normal * (plane_pt - ter).length() * (1.2f + float(l)/level + (l == level-2 ? 0.4f : 0.0f));
+        thetha = 1.0f / no_leaf * 2 * M_PI / (l+2);
+        no_leaf -= 2;
+    }
+
+
+    //c. read width and height of input texture (which represents a single leaf now) to compute its aspect ratio, 
+    QImage img(_generic_texure.c_str());
+    if(img.isNull() || img.width() == 0 || img.height() == 0)
+    {
+        printf("GenericLeafGrower::grow_palm2():_img(%s) error\n", _generic_texure.c_str());
+        return;
+    }
+    float aspect = float(img.height()) / img.width();
+
+    //d. get quads and tex coords for each bezier curve
+    PalmParameter pp;//this class interpolate all the palm parameters
+    int density = 25;//number of growing point for each bezier curve, each growing point grows 2 leaves, each leaf has 4 vertices
+    int debug_cnt = 0;
+    bool debug = false;
+    
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+
+        pp.setBezierQuadratic(ctr_pt1, ctr_pt2, ctr_pt3);
+        std::vector <osg::Vec3> leafs = pp.getQuads(aspect, debug, debug_cnt);
+        std::vector <osg::Vec2> tex = pp.getTexCoords();
+
+        debug_cnt += density * 8;
+
+        for(unsigned int j=0; j<leafs.size(); j++)
+        {
+            _all_v.push_back(leafs[j]);
+            _all_tex.push_back(tex[j]);
+        }
+    }
+
+    return;
+}
+
+/* the idea is to let the tree data-structure represent both the branching
+ * structure and the leaf arrangements via Bezier control points
+ */
+void GenericLeafGrower::grow_palm3()
+{
+    if(!_root)
+        return;
+
+    //todo: fine tune other parameters by configs in settings
+    float leaf_scale = _scale <= 0.0f ? BDLSkeletonNode::leaf_scale_hint(_root)/5.5f : _scale;
+	if(_verbose)
+		printf("Current leaf-scale is %f.\n", leaf_scale);
+
+    //checking: assume its geometry is a stick, plus a set of curly branches representing the cubic Bezier curves
+    //the terminal node is defined as the first node whose child count is larger than 1
+    BDLSkeletonNode *terminal = _root;
+    while(!terminal->_children.empty())
+    {
+        if(terminal->_children.size() > 1)
+            break;
+        terminal = terminal->_children[0];
+    }
+    if(terminal == _root || terminal->_children.empty())
+    {
+        printf("GenericLeafGrower::grow_palm3():incorrect input skeleton\n");
+        return;
+    }
+    _all_v.clear();
+    _all_tex.clear();
+
+    //a. dfs from terminal and infer set of cubic bezier control points
+    //1 st control point is the terminal node and is shared by all curves
+    osg::Vec3 ter = Transformer::toVec3(terminal);
+    std::vector <osg::Vec3> sec_pts, third_pts, forth_pts;
+
+    std::vector <osg::Vec3> tmp_list;
+    std::stack <BDLSkeletonNode *> Stack;
+    Stack.push(terminal);
+    while(!Stack.empty())
+    {
+        BDLSkeletonNode *top = Stack.top();
+        Stack.pop();
+
+        //assume the structure is fixed and defined as:
+        //       __
+        //      /
+        // ter -----
+        //      \__
+        if(top != terminal)
+            tmp_list.push_back(Transformer::toVec3(top));
+
+        if(top->_children.empty())
+        {
+            if(tmp_list.size() >= 3)
+            {
+                sec_pts.push_back(tmp_list[0]);
+                third_pts.push_back(tmp_list[tmp_list.size()-2]);
+                forth_pts.push_back(tmp_list[tmp_list.size()-1]);
+                tmp_list.clear();
+            }
+        }
+
+        for(unsigned int i=0; i<top->_children.size(); i++)
+            Stack.push(top->_children[i]);
+    }
+
+    if(sec_pts.empty())
+    {
+        printf("GenericLeafGrower::grow_palm3():incorrect input skeleton\n");
+        return;
+    }
+
+    //b. read width and height of input texture (which represents a single leaf now) to compute its aspect ratio, 
+    QImage img(_generic_texure.c_str());
+    if(img.isNull() || img.width() == 0 || img.height() == 0)
+    {
+        printf("GenericLeafGrower::grow_palm2():_img(%s) error\n", _generic_texure.c_str());
+        return;
+    }
+    float aspect = float(img.height()) / img.width();
+
+    //c. get quads and tex coords for each bezier curve
+    float noise = 0.5f;
+    PalmParameter pp(noise);//this class interpolate all the palm parameters
+    
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+        osg::Vec3 ctr_pt4 = forth_pts[i];
+
+        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4);
+        std::vector <osg::Vec3> leafs = pp.getQuads(aspect);
+        std::vector <osg::Vec2> tex = pp.getTexCoords();
+
+        for(unsigned int j=0; j<leafs.size(); j++)
+        {
+            _all_v.push_back(leafs[j]);
+            _all_tex.push_back(tex[j]);
+        }
     }
 
     return;

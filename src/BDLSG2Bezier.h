@@ -24,10 +24,21 @@ class BDLSG2Bezier
         //void output(BDLSkeletonNode *root, osg::Vec3 origin = osg::Vec3(0.0, 0.0, 0.0), double height = 10.0, int angle = 0, bool maya = false, double simplication = 1.0);
         void output(BDLSkeletonNode *root);
 
+        /* convert a palm data structure into set of separated Bezier curves
+         * the lower part of the data structure is the same as usual, but 
+         * the upper part is a cubic Bezier curve with at least 4 nodes for each branch
+         */
+        void output_palm(BDLSkeletonNode *root);
+
         /* output the format used by XiaoPeng
          * note: just print the skeleton and the raidus of each node
          */
         void output_xiao(BDLSkeletonNode *root);
+
+        /* need to solve the mystery of misalignment
+         * solved: the misalignment is caused by the difference between the set of bezier curves and the connected mesh, so need to re-adjust the leaves
+         */
+        void blender_test();
 
     protected:
         /* convert a list of path points into a list of Cubic Bezier control points

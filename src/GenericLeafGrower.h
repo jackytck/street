@@ -58,8 +58,23 @@ class GenericLeafGrower
         void grow();
 
         /* grow leaves for palm tree
+         * by hard-coding a set of quadratic Bezier curves,
+         * then tile quads onto each curve.
+         * each quads represent a set of leaves
          */
         void grow_palm();
+
+        /* improve the grow_palm() method by 
+         * representing each leaf as a quad,
+         * and properly align them in a more realistic way
+         */
+        void grow_palm2();
+
+        /* instead of hard-coding the Bezier curve in grow_palm2(),
+         * assume the outer part of the input skeleton represents sets of cubic Bezier curves,
+         * the main skeleton stills represent the physical branch
+         */
+        void grow_palm3();
 
 		/* output the grown leaves for external use, e.g. Blender
 		 */
