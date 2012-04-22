@@ -69,6 +69,9 @@ int main(int argc, char *argv[])
     //palm tree
 	bool is_palm_leaves = false;//grow palm leaves or not
 
+    //single image palm
+    bool is_single_img_palm = false;
+
 	//outputs
 	std::string out_bdlsg(""), out_bezier(""), out_bezier_palm(""), out_xiao(""), out_cache(""), out_leaf(""), out_generic_leaf(""), out_realistic_leaf("");
 
@@ -114,6 +117,7 @@ int main(int argc, char *argv[])
 		("sim_leaf", "Simplify the leaves")
 		("sim_ske", "Simplify the skeleton")
 		("palm", "Generate palm tree's leaves")
+        ("single_image_palm", "Grow palm tree by an isp")
 	;
 
 	//options parsing
@@ -155,6 +159,9 @@ int main(int argc, char *argv[])
 
         if(vm.count("palm"))
             is_palm_leaves = true;
+
+        if(vm.count("single_image_palm"))
+            is_single_img_palm = true;
 
 		//entry point for any generic test
 		if(false)
@@ -274,6 +281,13 @@ int main(int argc, char *argv[])
 			
 			goto Break;
 		}
+
+        //for growing palm tree from an image segmentation pair
+        if(is_single_img_palm && !isp0.empty())
+        {
+            printf("growing for single image palm...\n");
+			goto Break;
+        }
 
 		//generation
 		if(!library.empty() && !initial.empty() && !isp0.empty() && 

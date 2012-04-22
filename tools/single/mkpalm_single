@@ -1,0 +1,32 @@
+#! /bin/bash
+
+# check
+if [[ "$STREET" == "" || "$SINGLE_OUT" == "" || "$GLEAF" == "" || "$ISP0" == "" || "$LEAF_SCALE" == "" || "$LEAF_GROW_ZONE" == "" || "$LEAF_RADIUS_K" == "" || "$LEAF_PEDAL" == "" || "$LEAF_FUZZINESS" == "" ]]; then
+  echo Run \'. ./setup\'.
+  exit
+fi
+
+function check
+{
+    if [ ! -f "$1" ]; then
+        echo missing "'$1'".
+        exit
+    fi
+}
+
+check "$STREET"
+#check "$GLEAF"
+check "$ISP0"
+
+if [ ! -d "$SINGLE_OUT" ]; then
+    echo missing "'$SINGLE_OUT'".
+    exit
+fi
+
+# outputs
+bdlsg=$SINGLE_OUT'z_skeleton'
+
+#cmd="\"$STREET\" -v --gleaf_texture \"$GLEAF\" --leaf_scale \"$LEAF_SCALE\" -G \"$bdlsg\" -r \"$leaves\" --palm"
+cmd="\"$STREET\" -v --single_image_palm -S \"$ISP0\" -b \"$bdlsg\" $@"
+echo $cmd
+eval "$cmd"
