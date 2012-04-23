@@ -45,14 +45,16 @@ SingleImagePalm::~SingleImagePalm()
 {
     if(_verbose)
     {
+        const char * path = "/tmp/debug.png";
         if(_root.x() != -1 && _root.y() != -1)
         {
             airbrush(_root.x(), _root.y());
-            printf("_root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
 
         if(!_debug_img.isNull())
-            _debug_img.save(QString("/tmp/debug.png"), "PNG", 70);
+            _debug_img.save(QString(path), "PNG", 70);
+
+        printf("debug image is outputted at '%s'\n", path);
     }
 }
 
@@ -65,7 +67,10 @@ void SingleImagePalm::grow()
 {
     if(_data_valid)
     {
-        findRoot();
+        if(findRoot())
+        {
+            bfs();
+        }
     }
 }
 
@@ -92,9 +97,8 @@ void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2)
     p.end();
 }
 
-void SingleImagePalm::findRoot()
+bool SingleImagePalm::findRoot()
 {
-    printf("SingleImagePalm::findRoot()\n");
     int w = _seg.width(), h = _seg.height();
     for(int y=h-1; y>=0; y--)
 		for(int x=0; x<w; x++)
@@ -103,8 +107,14 @@ void SingleImagePalm::findRoot()
 			if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully transparent
             {
                 _root = osg::Vec2(x, y);
-                return;
+                return true;
             }
         }
     _root = osg::Vec2(-1, -1);
+    return false;
+}
+
+void SingleImagePalm::bfs()
+{
+    printf("bfs()\n");
 }

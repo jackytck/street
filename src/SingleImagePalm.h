@@ -8,8 +8,7 @@
 #include <QImage>
 
 /* A class to model a palm tree from an image-segmentation-pari.
- * Flow: 
- * 1. Find the root of the palm
+ * Flow: refer to grow()
  *
  * Usage:
  * 1. SingleImagePalm()
@@ -30,6 +29,8 @@ class SingleImagePalm
         void setVerbose(bool debug);
 
         /*
+         * 1. Find the root of the palm from segmentation
+         * 2. bfs the whole segmentation
          */
         void grow();
 
@@ -46,8 +47,14 @@ class SingleImagePalm
 
         /*
          * find the root of palm from its segmentation
+         * return true if the root can be found
          */
-        void findRoot();
+        bool findRoot();
+
+        /*
+         * bfs from root and construct a bfs-tree
+         */
+        void bfs();
 
     private:
         bool _verbose;
