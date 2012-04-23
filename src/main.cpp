@@ -288,6 +288,7 @@ int main(int argc, char *argv[])
         {
             printf("growing for single image palm...\n");
             SingleImagePalm sip(isp0);
+            sip.setVerbose(verbose);
             sip.grow();
 			goto Break;
         }
