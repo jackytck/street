@@ -17,6 +17,7 @@
 #include "LaserProjector.h" 
 #include "Transformer.h" 
 #include "SkeletonSimplifier.h" 
+#include "SingleImagePalm.h"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -286,6 +287,8 @@ int main(int argc, char *argv[])
         if(is_single_img_palm && !isp0.empty())
         {
             printf("growing for single image palm...\n");
+            SingleImagePalm sip(isp0);
+            sip.grow();
 			goto Break;
         }
 

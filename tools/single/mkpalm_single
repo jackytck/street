@@ -19,8 +19,7 @@ check "$STREET"
 check "$ISP0"
 
 if [ ! -d "$SINGLE_OUT" ]; then
-    echo missing "'$SINGLE_OUT'".
-    exit
+    mkdir "$SINGLE_OUT"
 fi
 
 # outputs
