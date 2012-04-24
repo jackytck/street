@@ -22,6 +22,8 @@ class ImageNode
         osg::Vec2 _pos;
         osg::Vec2 _prev;
         float _dist;
+        bool _valid;//true if is inside segmentation
+        int _kingdom;
 };
 
 /* A class to model a palm tree from an image-segmentation-pari.
@@ -85,9 +87,25 @@ class SingleImagePalm
 
         /*
          * bfs from root and construct a bfs-tree
-         * if in verbose mode, debug image will be drawn when bfs() is running at the 2nd time
          */
         void bfs();
+
+        /*
+         * after getting the bfs distance maps, segment it into different kingdoms
+         * by packing ranges of dists in bins
+         * divide: larger than zero, length of each bin is equal to _max_dist / division
+         */
+        void assignKingdom(int divide = 30);
+
+        /*
+         * visualize bfs distance as scalar field
+         */
+        void visualize_bfs();
+
+        /*
+         * visualize kingdom
+         */
+        void visualize_kingdom();
 
     private:
         bool _verbose;
@@ -99,6 +117,8 @@ class SingleImagePalm
         int _w;
         int _h;
         float _max_dist;//max dist from root, for visualization purpose only
+        int _max_kingdom;//max kingdom id
+        std::vector <std::vector <ImageNode> > _nodes;
 };
 
 #endif

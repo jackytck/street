@@ -27,7 +27,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     int sw = _seg.width();
     int sh = _seg.height();
 
-    if(iw != sw || ih != sh)
+    if(iw != sw || ih != sh || iw <= 0 || ih <= 0)
     {
         printf("SingleImagePalm::SingleImagePalm():_img(%d x %d):_seg(%d x %d) does not match error\n", iw, ih, sw, sh);
         return;
@@ -54,6 +54,8 @@ SingleImagePalm::~SingleImagePalm()
             airbrush(_root.x(), _root.y());
             //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
+        //visualize_bfs();
+        visualize_kingdom();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -74,8 +76,7 @@ void SingleImagePalm::grow()
         if(findRoot())
         {
             bfs();
-            if(_verbose)
-                bfs();
+            assignKingdom();
         }
     }
 }
@@ -149,7 +150,6 @@ bool SingleImagePalm::findRoot()
 
 void SingleImagePalm::bfs()
 {
-    printf("bfs()\n");
     std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
     std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
 
@@ -167,11 +167,11 @@ void SingleImagePalm::bfs()
         if(nx < 0 || nx >= _w || ny < 0 || ny >= _h || visited[nx][ny] || !isInside(nx, ny))
             continue;
 
-        visited[nx][ny] = true;
         float d = n._dist;
-        if(_verbose && _max_dist != -1.0f)
-            airbrush(nx, ny, 1, 1, mapColor(d/_max_dist));
-        if(_max_dist == -1.0f && ((max_dist == -1.0f || d > max_dist)))
+        visited[nx][ny] = true;
+        nodes[nx][ny]._valid = true;
+        nodes[nx][ny]._dist = d;
+        if(max_dist == -1.0f || d > max_dist)
             max_dist = d;
         Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
         Queue.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
@@ -183,6 +183,59 @@ void SingleImagePalm::bfs()
         Queue.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
     }
 
-    if(_verbose && _max_dist == -1.0f && max_dist > 0)
+    if(_max_dist == -1.0f && max_dist > 0)
         _max_dist = max_dist;
+
+    if(_nodes.empty())
+        _nodes = nodes;
+}
+
+void SingleImagePalm::assignKingdom(int divide)
+{
+    if(_nodes.empty() || _max_dist <= 0.0f)
+        return;
+
+    _max_kingdom = -1;
+    float bin_len = _max_dist / divide;
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+            {
+                int kingdom = int(n._dist / bin_len);
+                _nodes[x][y]._kingdom = kingdom;
+                if(_max_kingdom == -1 || kingdom > _max_kingdom)
+                    _max_kingdom = kingdom;
+            }
+        }
+}
+
+void SingleImagePalm::visualize_bfs()
+{
+    if(_max_dist <= 0.0f)
+        return;
+
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+                airbrush(x, y, 1, 1, mapColor(n._dist/_max_dist));
+        }
+}
+
+void SingleImagePalm::visualize_kingdom()
+{
+    if(_max_kingdom <= 0)
+        return;
+
+    float mk = float(_max_kingdom);
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+                airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
+        }
 }
