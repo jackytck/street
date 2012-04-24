@@ -55,7 +55,7 @@ SingleImagePalm::~SingleImagePalm()
             //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
         //visualize_bfs();
-        visualize_kingdom();
+        visualize_bin();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -76,7 +76,7 @@ void SingleImagePalm::grow()
         if(findRoot())
         {
             bfs();
-            assignKingdom();
+            assignBin();
         }
     }
 }
@@ -135,14 +135,6 @@ bool SingleImagePalm::findRoot()
                 _root = osg::Vec2(x, y);
                 return true;
             }
-            /*
-			QRgb c = _seg.pixel(x, y);
-			if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
-            {
-                _root = osg::Vec2(x, y);
-                return true;
-            }
-            */
         }
     _root = osg::Vec2(-1, -1);
     return false;
@@ -190,12 +182,12 @@ void SingleImagePalm::bfs()
         _nodes = nodes;
 }
 
-void SingleImagePalm::assignKingdom(int divide)
+void SingleImagePalm::assignBin(int divide)
 {
     if(_nodes.empty() || _max_dist <= 0.0f)
         return;
 
-    _max_kingdom = -1;
+    _max_bin = -1;
     float bin_len = _max_dist / divide;
     for(int y=_h-1; y>=0; y--)
 		for(int x=0; x<_w; x++)
@@ -203,10 +195,10 @@ void SingleImagePalm::assignKingdom(int divide)
             ImageNode n = _nodes[x][y];
             if(n._valid)
             {
-                int kingdom = int(n._dist / bin_len);
-                _nodes[x][y]._kingdom = kingdom;
-                if(_max_kingdom == -1 || kingdom > _max_kingdom)
-                    _max_kingdom = kingdom;
+                int bin = int(n._dist / bin_len);
+                _nodes[x][y]._bin = bin;
+                if(_max_bin == -1 || bin > _max_bin)
+                    _max_bin = bin;
             }
         }
 }
@@ -225,17 +217,17 @@ void SingleImagePalm::visualize_bfs()
         }
 }
 
-void SingleImagePalm::visualize_kingdom()
+void SingleImagePalm::visualize_bin()
 {
-    if(_max_kingdom <= 0)
+    if(_max_bin <= 0)
         return;
 
-    float mk = float(_max_kingdom);
+    float mk = float(_max_bin);
     for(int y=_h-1; y>=0; y--)
 		for(int x=0; x<_w; x++)
 		{
             ImageNode n = _nodes[x][y];
             if(n._valid)
-                airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
+                airbrush(x, y, 1, 1, mapColor(n._bin/mk));
         }
 }

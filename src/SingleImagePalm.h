@@ -13,17 +13,17 @@
 class ImageNode
 {
     public:
-        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f)
+        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false)
         {
         }
-        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d)
+        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false)
         {
         }
         osg::Vec2 _pos;
         osg::Vec2 _prev;
         float _dist;
         bool _valid;//true if is inside segmentation
-        int _kingdom;
+        int _bin;
 };
 
 /* A class to model a palm tree from an image-segmentation-pari.
@@ -91,11 +91,11 @@ class SingleImagePalm
         void bfs();
 
         /*
-         * after getting the bfs distance maps, segment it into different kingdoms
+         * after getting the bfs distance maps, segment it into different bins
          * by packing ranges of dists in bins
          * divide: larger than zero, length of each bin is equal to _max_dist / division
          */
-        void assignKingdom(int divide = 30);
+        void assignBin(int divide = 30);
 
         /*
          * visualize bfs distance as scalar field
@@ -103,9 +103,9 @@ class SingleImagePalm
         void visualize_bfs();
 
         /*
-         * visualize kingdom
+         * visualize bins
          */
-        void visualize_kingdom();
+        void visualize_bin();
 
     private:
         bool _verbose;
@@ -117,7 +117,7 @@ class SingleImagePalm
         int _w;
         int _h;
         float _max_dist;//max dist from root, for visualization purpose only
-        int _max_kingdom;//max kingdom id
+        int _max_bin;//max bin id
         std::vector <std::vector <ImageNode> > _nodes;
 };
 
