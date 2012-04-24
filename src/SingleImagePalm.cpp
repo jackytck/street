@@ -1,6 +1,6 @@
 #include "SingleImagePalm.h"
 #include "ISPLoader.h"
-#include <QPainter>
+#include <queue>
 //#include "Transformer.h"
 
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
@@ -39,6 +39,9 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     //_img.save(QString("/tmp/test_tiff.png"), "PNG", 80);test if the qt plugin works
     _debug_img = QImage(iw, ih, QImage::Format_ARGB32);
     _debug_img.fill(0);
+    _w = iw;
+    _h = ih;
+    _max_dist = -1.0f;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -49,6 +52,7 @@ SingleImagePalm::~SingleImagePalm()
         if(_root.x() != -1 && _root.y() != -1)
         {
             airbrush(_root.x(), _root.y());
+            //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
 
         if(!_debug_img.isNull())
@@ -70,18 +74,19 @@ void SingleImagePalm::grow()
         if(findRoot())
         {
             bfs();
+            if(_verbose)
+                bfs();
         }
     }
 }
 
-void SingleImagePalm::airbrush(int x, int y)
+void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color)
 {
-    int w = 50, h = 50;
     QPainter p;
     p.begin(&_debug_img);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
-    p.setBrush(QBrush(Qt::red));
+    p.setBrush(QBrush(color));
     p.drawEllipse(x-w/2, y-h/2, w, h);
     p.end();
 }
@@ -97,18 +102,46 @@ void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2)
     p.end();
 }
 
+
+bool SingleImagePalm::isInside(int x, int y)
+{
+    bool ret = false;
+    if(!_seg.isNull() && x >= 0 && x < _w && y >= 0 && y < _h)
+    {
+        QRgb c = _seg.pixel(x, y);
+        if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
+            ret = true;
+    }
+    return ret;
+}
+
+QColor SingleImagePalm::mapColor(float scalar)
+{
+    int h = int(scalar * 360) % 360;
+    int s = 255;
+    int v = 255;
+    return QColor::fromHsv(h, s, v);
+}
+
 bool SingleImagePalm::findRoot()
 {
     int w = _seg.width(), h = _seg.height();
     for(int y=h-1; y>=0; y--)
 		for(int x=0; x<w; x++)
 		{
-			QRgb c = _seg.pixel(x, y);
-			if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully transparent
+            if(isInside(x, y))
             {
                 _root = osg::Vec2(x, y);
                 return true;
             }
+            /*
+			QRgb c = _seg.pixel(x, y);
+			if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
+            {
+                _root = osg::Vec2(x, y);
+                return true;
+            }
+            */
         }
     _root = osg::Vec2(-1, -1);
     return false;
@@ -117,4 +150,39 @@ bool SingleImagePalm::findRoot()
 void SingleImagePalm::bfs()
 {
     printf("bfs()\n");
+    std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
+    std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
+
+    const float diag_d = 1.4142135623730951f;
+    float max_dist = -1.0f;
+
+    std::queue <ImageNode> Queue;
+    ImageNode root(_root.x(), _root.y());
+    Queue.push(root);
+    while(!Queue.empty())
+    {
+        ImageNode n = Queue.front();
+        Queue.pop();
+        int nx = n._pos.x(), ny = n._pos.y();
+        if(nx < 0 || nx >= _w || ny < 0 || ny >= _h || visited[nx][ny] || !isInside(nx, ny))
+            continue;
+
+        visited[nx][ny] = true;
+        float d = n._dist;
+        if(_verbose && _max_dist != -1.0f)
+            airbrush(nx, ny, 1, 1, mapColor(d/_max_dist));
+        if(_max_dist == -1.0f && ((max_dist == -1.0f || d > max_dist)))
+            max_dist = d;
+        Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
+        Queue.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
+        Queue.push(ImageNode(nx, ny+1, nx, ny, d+1));
+        Queue.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
+        Queue.push(ImageNode(nx+1, ny, nx, ny, d+1));
+        Queue.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
+        Queue.push(ImageNode(nx, ny-1, nx, ny, d+1));
+        Queue.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
+    }
+
+    if(_verbose && _max_dist == -1.0f && max_dist > 0)
+        _max_dist = max_dist;
 }
