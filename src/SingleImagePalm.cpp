@@ -55,7 +55,7 @@ SingleImagePalm::~SingleImagePalm()
             //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
         //visualize_bfs();
-        visualize_bin();
+        //visualize_bin();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -77,6 +77,7 @@ void SingleImagePalm::grow()
         {
             bfs();
             assignBin();
+            inferKingdom();
         }
     }
 }
@@ -161,8 +162,10 @@ void SingleImagePalm::bfs()
 
         float d = n._dist;
         visited[nx][ny] = true;
-        nodes[nx][ny]._valid = true;
+        nodes[nx][ny]._pos = osg::Vec2(nx, ny);
+        nodes[nx][ny]._prev = osg::Vec2(n._prev.x(), n._prev.y());
         nodes[nx][ny]._dist = d;
+        nodes[nx][ny]._valid = true;
         if(max_dist == -1.0f || d > max_dist)
             max_dist = d;
         Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
@@ -201,6 +204,36 @@ void SingleImagePalm::assignBin(int divide)
                     _max_bin = bin;
             }
         }
+}
+
+void SingleImagePalm::inferKingdom()
+{
+    if(_max_bin < 0)
+        return;
+
+    //1. put ImageNode into (_max_bin+1) boxes
+    std::vector <std::vector <ImageNode> > boxes(_max_bin+1, std::vector <ImageNode>());
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+                boxes[n._bin].push_back(n);
+        }
+
+    //2. find connected component(s) for each bin
+    for(int i=0; i<=_max_bin; i++)
+    {
+        std::vector <ImageNode> ring = boxes[i];
+        for(unsigned int j=0; j<ring.size(); j++)
+        {
+            ImageNode n = ring[j];
+            if(n._considered)
+                continue;
+            //todo: traverse to parents until it reaches the boundary,
+            //then do a bfs on that node and assign a unique kingdom to all of nodes in subtree
+        }
+    }
 }
 
 void SingleImagePalm::visualize_bfs()

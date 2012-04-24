@@ -13,17 +13,19 @@
 class ImageNode
 {
     public:
-        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false)
+        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false), _considered(false)
         {
         }
-        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false)
+        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false)
         {
         }
         osg::Vec2 _pos;
         osg::Vec2 _prev;
         float _dist;
         bool _valid;//true if is inside segmentation
+        bool _considered;//for kingdom selection
         int _bin;
+        int _kingdom;
 };
 
 /* A class to model a palm tree from an image-segmentation-pari.
@@ -94,8 +96,14 @@ class SingleImagePalm
          * after getting the bfs distance maps, segment it into different bins
          * by packing ranges of dists in bins
          * divide: larger than zero, length of each bin is equal to _max_dist / division
+         * note: _max_bin will be set
          */
         void assignBin(int divide = 30);
+
+        /*
+         * infer kingdom by finding the connected component(s) in each bin
+         */
+        void inferKingdom();
 
         /*
          * visualize bfs distance as scalar field
