@@ -106,11 +106,6 @@ class SingleImagePalm
         void assignBin(int divide = 30);
 
         /*
-         * label all the nodes from subtree rooted at (x,y) to label
-         */
-        void labelSubtreeAt(int x, int y, int label);
-
-        /*
          * helper function for floodFillAt() to determine if (x,y) is a valid, un-considered and
          * laying in the same bin
          * neighbor
@@ -142,8 +137,6 @@ class SingleImagePalm
          * visualize kingdom
          */
         void visualize_kingdom();
-
-        void visualize_children();
 
     private:
         bool _verbose;
