@@ -58,6 +58,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bfs();
         //visualize_bin();
         visualize_kingdom();
+        visualize_king();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -80,6 +81,7 @@ void SingleImagePalm::grow()
             bfs();
             assignBin();
             inferKingdom();
+            inferKing();
         }
     }
 }
@@ -312,6 +314,43 @@ void SingleImagePalm::inferKingdom()
     }
 }
 
+void SingleImagePalm::inferKing()
+{
+    if(_max_kingdom <= 0)
+        return;
+    _king_id = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
+
+    //1. put ImageNode into (_max_kingdom+1) boxes
+    std::vector <std::vector <ImageNode *> > boxes(_max_kingdom+1, std::vector <ImageNode *>(NULL));
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+                boxes[n._kingdom].push_back(&_nodes[x][y]);
+        }
+
+    //2. find king of each kingdom
+    for(int i=0; i<=_max_kingdom; i++)
+    {
+        std::vector <ImageNode *> kingdom = boxes[i];
+        //if(!kingdom.empty())
+        if(kingdom.size() > 1000)//population constraint
+        {
+            long long x = 0, y = 0;
+            for(unsigned int j=0; j<kingdom.size(); j++)
+            {
+                ImageNode n = *kingdom[j];
+                x += n._pos.x();
+                y += n._pos.y();
+            }
+            int ax = int(x / kingdom.size());
+            int ay = int(y / kingdom.size());
+            _king_id[i] = osg::Vec2(ax, ay);
+        }
+    }
+}
+
 void SingleImagePalm::visualize_bfs()
 {
     if(_max_dist <= 0.0f)
@@ -354,4 +393,14 @@ void SingleImagePalm::visualize_kingdom()
             if(n._valid)
                 airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
         }
+}
+
+void SingleImagePalm::visualize_king()
+{
+    for(unsigned int i=0; i<_king_id.size(); i++)
+    {
+        osg::Vec2 king = _king_id[i];
+        if(king.x() >= 0 && king.y() >= 0)
+            airbrush(king.x(), king.y(), 10, 10, Qt::white);
+    }
 }

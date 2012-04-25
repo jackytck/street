@@ -13,10 +13,10 @@
 class ImageNode
 {
     public:
-        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false), _considered(false)
+        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false), _considered(false), _king(NULL)
         {
         }
-        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false)
+        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false), _king(NULL)
         {
         }
         osg::Vec2 _pos;
@@ -24,6 +24,7 @@ class ImageNode
         float _dist;
         bool _valid;//true if is inside segmentation
         bool _considered;//for kingdom selection
+        int _king;//king id stored in SingleImagePalm
         int _bin;
         int _kingdom;
         std::vector <ImageNode *> _children;//pointers static references
@@ -124,6 +125,11 @@ class SingleImagePalm
         void inferKingdom();
 
         /*
+         * infer averaged skeleton node(king) of each kingdom
+         */
+        void inferKing();
+
+        /*
          * visualize bfs distance as scalar field
          */
         void visualize_bfs();
@@ -138,6 +144,11 @@ class SingleImagePalm
          */
         void visualize_kingdom();
 
+        /*
+         * visualize kingdom
+         */
+        void visualize_king();
+
     private:
         bool _verbose;
         bool _data_valid;
@@ -151,6 +162,7 @@ class SingleImagePalm
         int _max_bin;//max bin id
         int _max_kingdom;//max kingdom id
         std::vector <std::vector <ImageNode> > _nodes;
+        std::vector <osg::Vec2> _king_id;//map the i-th kingdom to the position of king
 };
 
 #endif
