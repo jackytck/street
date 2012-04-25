@@ -1,7 +1,6 @@
 #include "SingleImagePalm.h"
 #include "ISPLoader.h"
 #include <queue>
-//#include "Transformer.h"
 
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
 {
@@ -65,6 +64,8 @@ SingleImagePalm::~SingleImagePalm()
 
         printf("debug image is outputted at '%s'\n", path);
     }
+
+    BDLSkeletonNode::delete_this(_skeleton);
 }
 
 void SingleImagePalm::setVerbose(bool debug)
@@ -82,6 +83,7 @@ void SingleImagePalm::grow()
             assignBin();
             inferKingdom();
             inferKing();
+            inferSkeleton();
         }
     }
 }
@@ -318,7 +320,7 @@ void SingleImagePalm::inferKing()
 {
     if(_max_kingdom <= 0)
         return;
-    _king_id = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
+    _kings = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
 
     //1. put ImageNode into (_max_kingdom+1) boxes
     std::vector <std::vector <ImageNode *> > boxes(_max_kingdom+1, std::vector <ImageNode *>(NULL));
@@ -334,8 +336,8 @@ void SingleImagePalm::inferKing()
     for(int i=0; i<=_max_kingdom; i++)
     {
         std::vector <ImageNode *> kingdom = boxes[i];
-        //if(!kingdom.empty())
-        if(kingdom.size() > 1000)//population constraint
+        if(!kingdom.empty())
+        //if(kingdom.size() > 1000)//population constraint
         {
             long long x = 0, y = 0;
             for(unsigned int j=0; j<kingdom.size(); j++)
@@ -346,9 +348,103 @@ void SingleImagePalm::inferKing()
             }
             int ax = int(x / kingdom.size());
             int ay = int(y / kingdom.size());
-            _king_id[i] = osg::Vec2(ax, ay);
+            _kings[i] = osg::Vec2(ax, ay);
         }
     }
+}
+
+void SingleImagePalm::inferSkeleton()
+{
+    printf("inferring skeleton...\n");
+    if(_max_kingdom <= 0)
+        return;
+
+    //1. put ImageNode into (_max_kingdom+1) boxes
+    std::vector <std::vector <ImageNode *> > boxes(_max_kingdom+1, std::vector <ImageNode *>(NULL));
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid)
+                boxes[n._kingdom].push_back(&_nodes[x][y]);
+        }
+
+    //2. establish edge info
+    std::vector <osg::Vec2> edges;//list of <par,child>
+    for(int i=0; i<=_max_kingdom; i++)
+    {
+        std::vector <ImageNode *> kingdom = boxes[i];
+        if(!kingdom.empty())
+        //if(kingdom.size() > 1000)//population constraint
+        {
+            for(unsigned int j=0; j<kingdom.size(); j++)
+            {
+                ImageNode n = *kingdom[j];
+                ImageNode cur = n;
+                ImageNode target = cur;
+                bool toBreak = false;
+                while(cur._valid)
+                {
+                    int pre_x = cur._prev.x();
+                    int pre_y = cur._prev.y();
+                    if(pre_x >= 0 && pre_y >= 0)
+                    {
+                        ImageNode par = _nodes[pre_x][pre_y];
+                        if(par._kingdom == n._kingdom)
+                            cur = par;
+                        else
+                        {
+                            edges.push_back(osg::Vec2(par._kingdom, n._kingdom));
+                            toBreak = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        edges.push_back(osg::Vec2(-1, n._kingdom));
+                        toBreak = true;
+                        break;
+                    }
+                }
+                if(toBreak)
+                    break;
+            }
+        }
+    }
+
+    //debug edge info
+    for(unsigned int i=0; i<edges.size(); i++)
+    {
+        osg::Vec2 e = edges[i];
+        printf("%d -> %d\n", int(e.x()), int(e.y()));
+    }
+
+    //3. build BDLSkeleton
+    std::vector <BDLSkeletonNode *> nodes;
+
+    for(unsigned int i=0; i<_kings.size(); i++)
+    {
+        //in image space, i.e. origin is left-top corner
+        BDLSkeletonNode *node = new BDLSkeletonNode;
+        node->_sx = _kings[i].x();
+        node->_sy = 0.0f;
+        node->_sz = _kings[i].y();
+
+        nodes.push_back(node);
+    }
+
+    for(unsigned int i=0; i<edges.size(); i++)
+    {
+        osg::Vec2 e = edges[i];
+        int parent = int(e.x());
+        int child = int(e.y());
+
+        nodes[parent]->_children.push_back(nodes[child]);
+        nodes[child]->_prev = nodes[parent];
+    }
+
+    if(!nodes.empty())
+        _skeleton = nodes[0];
 }
 
 void SingleImagePalm::visualize_bfs()
@@ -397,9 +493,9 @@ void SingleImagePalm::visualize_kingdom()
 
 void SingleImagePalm::visualize_king()
 {
-    for(unsigned int i=0; i<_king_id.size(); i++)
+    for(unsigned int i=0; i<_kings.size(); i++)
     {
-        osg::Vec2 king = _king_id[i];
+        osg::Vec2 king = _kings[i];
         if(king.x() >= 0 && king.y() >= 0)
             airbrush(king.x(), king.y(), 10, 10, Qt::white);
     }

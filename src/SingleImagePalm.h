@@ -7,6 +7,7 @@
 #include <string>
 #include <QImage>
 #include <QPainter>
+#include "BDLPointGraph.h"
 
 /* A helper class for doing bfs in the segmentation.
  */
@@ -130,6 +131,11 @@ class SingleImagePalm
         void inferKing();
 
         /*
+         * infer skeleton from kingdom and king
+         */
+        void inferSkeleton();
+
+        /*
          * visualize bfs distance as scalar field
          */
         void visualize_bfs();
@@ -162,7 +168,8 @@ class SingleImagePalm
         int _max_bin;//max bin id
         int _max_kingdom;//max kingdom id
         std::vector <std::vector <ImageNode> > _nodes;
-        std::vector <osg::Vec2> _king_id;//map the i-th kingdom to the position of king
+        std::vector <osg::Vec2> _kings;//map the i-th kingdom to the position of king
+        BDLSkeletonNode *_skeleton;
 };
 
 #endif
