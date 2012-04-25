@@ -111,6 +111,19 @@ class SingleImagePalm
         void labelSubtreeAt(int x, int y, int label);
 
         /*
+         * helper function for floodFillAt() to determine if (x,y) is a valid, un-considered and
+         * laying in the same bin
+         * neighbor
+         */
+        inline ImageNode *isGoodNeighbor(int x, int y, int bin);
+
+        /*
+         * flood fill region
+         * for inferring the connected component(s) in each bin
+         */
+        void floodFillAt(int x, int y, int label);
+
+        /*
          * infer kingdom by finding the connected component(s) in each bin
          */
         void inferKingdom();

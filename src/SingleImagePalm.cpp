@@ -253,6 +253,69 @@ void SingleImagePalm::labelSubtreeAt(int x, int y, int label)
     printf("kingdom(%d) population(%d)\n", label, cnt);
 }
 
+ImageNode * SingleImagePalm::isGoodNeighbor(int x, int y, int bin)
+{
+    ImageNode *ret = NULL;
+    if(x >= 0 && x < _w && y >= 0 && y < _h)
+    {
+        ImageNode n = _nodes[x][y];
+        if(n._bin == bin && n._valid && !n._considered)
+            ret = &_nodes[x][y];
+    }
+    return ret;
+}
+
+void SingleImagePalm::floodFillAt(int x, int y, int label)
+{
+    if(x < 0 || x >= _w || y < 0 || y >= _h)
+        return;
+
+    //bfs
+    int cnt = 0;
+    int ref_bin = _nodes[x][y]._bin;
+    std::queue <ImageNode *> Queue;
+    Queue.push(&_nodes[x][y]);
+    while(!Queue.empty())
+    {
+        ImageNode *n_p = Queue.front();
+        Queue.pop();
+        if(n_p->_considered)
+            continue;
+
+        int nx = n_p->_pos.x(), ny = n_p->_pos.y();
+        n_p->_kingdom = label;
+        n_p->_considered = true;
+        cnt++;
+
+        ImageNode *a, *b, *c, *d, *e, *f, *g, *h;
+        a = isGoodNeighbor(nx-1, ny, ref_bin);
+        b = isGoodNeighbor(nx-1, ny+1, ref_bin);
+        c = isGoodNeighbor(nx, ny+1, ref_bin);
+        d = isGoodNeighbor(nx+1, ny+1, ref_bin);
+        e = isGoodNeighbor(nx+1, ny, ref_bin);
+        f = isGoodNeighbor(nx+1, ny-1, ref_bin);
+        g = isGoodNeighbor(nx, ny-1, ref_bin);
+        h = isGoodNeighbor(nx-1, ny-1, ref_bin);
+        if(a)
+            Queue.push(a);
+        //if(b)
+        //    Queue.push(b);
+        if(c)
+            Queue.push(c);
+        //if(d)
+        //    Queue.push(d);
+        if(e)
+            Queue.push(e);
+        //if(f)
+        //    Queue.push(f);
+        if(g)
+            Queue.push(g);
+        //if(h)
+        //    Queue.push(h);
+    }
+    printf("kingdom(%d) population(%d)\n", label, cnt);
+}
+
 void SingleImagePalm::inferKingdom()
 {
     printf("infering kingdom...\n");
@@ -284,33 +347,32 @@ void SingleImagePalm::inferKingdom()
             //todo: traverse to parents until it reaches the boundary,
             //then do a bfs on that node and assign a unique kingdom to all of nodes in subtree
             //2.a find the predecessor(s) until its parent has a different bin
-            ImageNode cur = n;
-            ImageNode target = cur;
-            while(cur._valid)
-            {
-                //_nodes[int(cur._pos.x())][int(cur._pos.y())]._considered = true;
-                int pre_x = int(cur._prev.x());
-                int pre_y = int(cur._prev.y());
-                if(pre_x >= 0 && pre_y >= 0)
-                {
-                    ImageNode par = _nodes[pre_x][pre_y];
-                    if(par._bin == n._bin)
-                        cur = par;
-                    else
-                    {
-                        target = cur;
-                        break;
-                    }
-                }
-                else
-                {
-                    target = cur;
-                    break;
-                }
-            }
-            //printf("target(%d,%d) bin(%d)\n", int(target._pos.x()), int(target._pos.y()), target._bin);
-            //airbrush(int(target._pos.x()), int(target._pos.y()), 1, 1, Qt::green);
-            labelSubtreeAt(int(target._pos.x()), int(target._pos.y()), _max_kingdom);
+            //using the bfs tree is incorrect, instead just flood fill the graph to infer the kingdom
+            //ImageNode cur = n;
+            //ImageNode target = cur;
+            //while(cur._valid)
+            //{
+            //    int pre_x = int(cur._prev.x());
+            //    int pre_y = int(cur._prev.y());
+            //    if(pre_x >= 0 && pre_y >= 0)
+            //    {
+            //        ImageNode par = _nodes[pre_x][pre_y];
+            //        if(par._bin == n._bin)
+            //            cur = par;
+            //        else
+            //        {
+            //            target = cur;
+            //            break;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        target = cur;
+            //        break;
+            //    }
+            //}
+            //labelSubtreeAt(int(target._pos.x()), int(target._pos.y()), _max_kingdom);
+            floodFillAt(int(n._pos.x()), int(n._pos.y()), _max_kingdom);
             _max_kingdom++;
         }
     }
@@ -355,7 +417,7 @@ void SingleImagePalm::visualize_kingdom()
 		for(int x=0; x<_w; x++)
 		{
             ImageNode n = _nodes[x][y];
-            if(n._valid && n._kingdom == 10)
+            if(n._valid)
                 airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
         }
 }
