@@ -26,6 +26,7 @@ class ImageNode
         bool _considered;//for kingdom selection
         int _bin;
         int _kingdom;
+        std::vector <ImageNode *> _children;//pointers static references
 };
 
 /* A class to model a palm tree from an image-segmentation-pari.
@@ -87,6 +88,10 @@ class SingleImagePalm
          */
         bool findRoot();
 
+        /* setup children of each node
+         */
+        void setupChildren();
+
         /*
          * bfs from root and construct a bfs-tree
          */
@@ -99,6 +104,11 @@ class SingleImagePalm
          * note: _max_bin will be set
          */
         void assignBin(int divide = 30);
+
+        /*
+         * label all the nodes from subtree rooted at (x,y) to label
+         */
+        void labelSubtreeAt(int x, int y, int label);
 
         /*
          * infer kingdom by finding the connected component(s) in each bin
@@ -115,6 +125,13 @@ class SingleImagePalm
          */
         void visualize_bin();
 
+        /*
+         * visualize kingdom
+         */
+        void visualize_kingdom();
+
+        void visualize_children();
+
     private:
         bool _verbose;
         bool _data_valid;
@@ -126,6 +143,7 @@ class SingleImagePalm
         int _h;
         float _max_dist;//max dist from root, for visualization purpose only
         int _max_bin;//max bin id
+        int _max_kingdom;//max kingdom id
         std::vector <std::vector <ImageNode> > _nodes;
 };
 

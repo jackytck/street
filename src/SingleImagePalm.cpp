@@ -42,6 +42,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _w = iw;
     _h = ih;
     _max_dist = -1.0f;
+    _max_kingdom = -1;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -51,11 +52,13 @@ SingleImagePalm::~SingleImagePalm()
         const char * path = "/tmp/debug.png";
         if(_root.x() != -1 && _root.y() != -1)
         {
-            airbrush(_root.x(), _root.y());
+            //airbrush(_root.x(), _root.y());
             //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
         //visualize_bfs();
         //visualize_bin();
+        visualize_kingdom();
+        //visualize_children();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -134,11 +137,25 @@ bool SingleImagePalm::findRoot()
             if(isInside(x, y))
             {
                 _root = osg::Vec2(x, y);
+                printf("root(%d,%d)\n", x, y);
                 return true;
             }
         }
     _root = osg::Vec2(-1, -1);
     return false;
+}
+
+void SingleImagePalm::setupChildren()
+{
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            int px = int(n._prev.x());
+            int py = int(n._prev.y());
+            if(n._valid && px >= 0 && py >= 0)
+                _nodes[px][py]._children.push_back(&_nodes[x][y]);
+        }
 }
 
 void SingleImagePalm::bfs()
@@ -183,7 +200,10 @@ void SingleImagePalm::bfs()
         _max_dist = max_dist;
 
     if(_nodes.empty())
+    {
         _nodes = nodes;
+        setupChildren();
+    }
 }
 
 void SingleImagePalm::assignBin(int divide)
@@ -207,6 +227,32 @@ void SingleImagePalm::assignBin(int divide)
         }
 }
 
+void SingleImagePalm::labelSubtreeAt(int x, int y, int label)
+{
+    if(x < 0 || x >= _w || y < 0 || y >= _h)
+        return;
+
+    //bfs
+    int cnt = 0;
+    int ref_bin = _nodes[x][y]._bin;
+    std::queue <ImageNode *> Queue;
+    Queue.push(&_nodes[x][y]);
+    while(!Queue.empty())
+    {
+        ImageNode *n_p = Queue.front();
+        Queue.pop();
+
+        n_p->_kingdom = label;
+        n_p->_considered = true;
+        cnt++;
+
+        for(unsigned int i=0; i<n_p->_children.size(); i++)
+            if(n_p->_children[i]->_bin == ref_bin)
+                Queue.push(n_p->_children[i]);
+    }
+    printf("kingdom(%d) population(%d)\n", label, cnt);
+}
+
 void SingleImagePalm::inferKingdom()
 {
     printf("infering kingdom...\n");
@@ -224,6 +270,7 @@ void SingleImagePalm::inferKingdom()
         }
 
     //2. find connected component(s) for each bin
+    _max_kingdom = 0;
     for(int i=0; i<=_max_bin; i++)
     {
         std::vector <ImageNode *> ring = boxes[i];
@@ -233,6 +280,7 @@ void SingleImagePalm::inferKingdom()
             ImageNode n = *ring[j];
             if(n._considered)
                 continue;
+
             //todo: traverse to parents until it reaches the boundary,
             //then do a bfs on that node and assign a unique kingdom to all of nodes in subtree
             //2.a find the predecessor(s) until its parent has a different bin
@@ -240,9 +288,9 @@ void SingleImagePalm::inferKingdom()
             ImageNode target = cur;
             while(cur._valid)
             {
-                _nodes[int(cur._pos.x())][int(cur._pos.y())]._considered = true;
-                int pre_x = cur._prev.x();
-                int pre_y = cur._prev.y();
+                //_nodes[int(cur._pos.x())][int(cur._pos.y())]._considered = true;
+                int pre_x = int(cur._prev.x());
+                int pre_y = int(cur._prev.y());
                 if(pre_x >= 0 && pre_y >= 0)
                 {
                     ImageNode par = _nodes[pre_x][pre_y];
@@ -255,10 +303,15 @@ void SingleImagePalm::inferKingdom()
                     }
                 }
                 else
+                {
+                    target = cur;
                     break;
+                }
             }
             //printf("target(%d,%d) bin(%d)\n", int(target._pos.x()), int(target._pos.y()), target._bin);
-            //airbrush(int(target._pos.x()), int(target._pos.y()), 5, 5, Qt::green);
+            //airbrush(int(target._pos.x()), int(target._pos.y()), 1, 1, Qt::green);
+            labelSubtreeAt(int(target._pos.x()), int(target._pos.y()), _max_kingdom);
+            _max_kingdom++;
         }
     }
 }
@@ -289,5 +342,32 @@ void SingleImagePalm::visualize_bin()
             ImageNode n = _nodes[x][y];
             if(n._valid)
                 airbrush(x, y, 1, 1, mapColor(n._bin/mk));
+        }
+}
+
+void SingleImagePalm::visualize_kingdom()
+{
+    if(_max_kingdom <= 0)
+        return;
+
+    float mk = float(_max_kingdom);
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid && n._kingdom == 10)
+                airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
+        }
+}
+
+void SingleImagePalm::visualize_children()
+{
+    labelSubtreeAt(int(_root.x()), int(_root.y()), 1);
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._considered)
+                airbrush(x, y, 1, 1, Qt::yellow);
         }
 }
