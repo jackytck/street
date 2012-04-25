@@ -143,6 +143,7 @@ bool SingleImagePalm::findRoot()
 
 void SingleImagePalm::bfs()
 {
+    printf("bfs-ing...\n");
     std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
     std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
 
@@ -208,30 +209,56 @@ void SingleImagePalm::assignBin(int divide)
 
 void SingleImagePalm::inferKingdom()
 {
+    printf("infering kingdom...\n");
     if(_max_bin < 0)
         return;
 
     //1. put ImageNode into (_max_bin+1) boxes
-    std::vector <std::vector <ImageNode> > boxes(_max_bin+1, std::vector <ImageNode>());
+    std::vector <std::vector <ImageNode *> > boxes(_max_bin+1, std::vector <ImageNode *>(NULL));
     for(int y=_h-1; y>=0; y--)
 		for(int x=0; x<_w; x++)
 		{
             ImageNode n = _nodes[x][y];
             if(n._valid)
-                boxes[n._bin].push_back(n);
+                boxes[n._bin].push_back(&_nodes[x][y]);
         }
 
     //2. find connected component(s) for each bin
     for(int i=0; i<=_max_bin; i++)
     {
-        std::vector <ImageNode> ring = boxes[i];
+        std::vector <ImageNode *> ring = boxes[i];
         for(unsigned int j=0; j<ring.size(); j++)
         {
-            ImageNode n = ring[j];
+            //now we are in bin or ring j
+            ImageNode n = *ring[j];
             if(n._considered)
                 continue;
             //todo: traverse to parents until it reaches the boundary,
             //then do a bfs on that node and assign a unique kingdom to all of nodes in subtree
+            //2.a find the predecessor(s) until its parent has a different bin
+            ImageNode cur = n;
+            ImageNode target = cur;
+            while(cur._valid)
+            {
+                _nodes[int(cur._pos.x())][int(cur._pos.y())]._considered = true;
+                int pre_x = cur._prev.x();
+                int pre_y = cur._prev.y();
+                if(pre_x >= 0 && pre_y >= 0)
+                {
+                    ImageNode par = _nodes[pre_x][pre_y];
+                    if(par._bin == n._bin)
+                        cur = par;
+                    else
+                    {
+                        target = cur;
+                        break;
+                    }
+                }
+                else
+                    break;
+            }
+            //printf("target(%d,%d) bin(%d)\n", int(target._pos.x()), int(target._pos.y()), target._bin);
+            //airbrush(int(target._pos.x()), int(target._pos.y()), 5, 5, Qt::green);
         }
     }
 }
