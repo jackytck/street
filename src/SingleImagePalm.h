@@ -65,12 +65,12 @@ class SingleImagePalm
          * w, h: width, height of ellipse
          * color: color of ellipse
          */
-        void airbrush(int x, int y, int w = 50, int h = 50, QColor color = Qt::red);
+        void airbrush(int x, int y, int w = 10, int h = 10, QColor color = Qt::red);
 
         /*
          * for debugging and illustration purpose only
          */
-        void drawLine(int x1, int y1, int x2, int y2);
+        void drawLine(int x1, int y1, int x2, int y2, int size = 5);
 
         /*
          * test if a given point is inside the segmentation
@@ -154,6 +154,11 @@ class SingleImagePalm
          * visualize kingdom
          */
         void visualize_king();
+
+        /*
+         * visualize skeleton
+         */
+        void visualize_skeleton();
 
     private:
         bool _verbose;
