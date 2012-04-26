@@ -70,7 +70,7 @@ class SingleImagePalm
         /*
          * for debugging and illustration purpose only
          */
-        void drawLine(int x1, int y1, int x2, int y2, int size = 5);
+        void drawLine(int x1, int y1, int x2, int y2, QColor color = Qt::green, int size = 5);
 
         /*
          * test if a given point is inside the segmentation
@@ -132,8 +132,17 @@ class SingleImagePalm
 
         /*
          * infer skeleton from kingdom and king
+         * note: this skeleton is directly obtained from flood filling regions in each bin
+         * _raw_skeleton will be set
          */
-        void inferSkeleton();
+        void inferRawSkeleton();
+
+        /*
+         * extract the main branch from the raw skeleton
+         * note: this is the only reliable and robust info we can get from it
+         * the result is stored in _skeleton
+         */
+        void extractMainBranch();
 
         /*
          * visualize bfs distance as scalar field
@@ -157,8 +166,12 @@ class SingleImagePalm
 
         /*
          * visualize skeleton
+         * root: root of skeleton
+         * show_node: print the nodes
+         * show_edge: print the edges
+         * color: color of edges
          */
-        void visualize_skeleton(bool show_node = true, bool show_edge = true);
+        void visualize_skeleton(BDLSkeletonNode *root, bool show_node = true, bool show_edge = true, QColor color = Qt::green);
 
     private:
         bool _verbose;
@@ -174,6 +187,7 @@ class SingleImagePalm
         int _max_kingdom;//max kingdom id
         std::vector <std::vector <ImageNode> > _nodes;
         std::vector <osg::Vec2> _kings;//map the i-th kingdom to the position of king
+        BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
 };
 

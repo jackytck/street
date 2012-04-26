@@ -42,6 +42,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _h = ih;
     _max_dist = -1.0f;
     _max_kingdom = -1;
+    _raw_skeleton = NULL;
+    _skeleton = NULL;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -58,7 +60,8 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bin();
         visualize_kingdom();
         //visualize_king();
-        visualize_skeleton(true, true);
+        visualize_skeleton(_raw_skeleton, true, true);
+        visualize_skeleton(_skeleton, true, true, Qt::black);
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -66,6 +69,8 @@ SingleImagePalm::~SingleImagePalm()
         printf("debug image is outputted at '%s'\n", path);
     }
 
+    //delete all the bdl skeletons
+    BDLSkeletonNode::delete_this(_raw_skeleton);
     BDLSkeletonNode::delete_this(_skeleton);
 }
 
@@ -84,7 +89,8 @@ void SingleImagePalm::grow()
             assignBin();
             inferKingdom();
             inferKing();
-            inferSkeleton();
+            inferRawSkeleton();
+            extractMainBranch();
         }
     }
 }
@@ -100,12 +106,12 @@ void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color)
     p.end();
 }
 
-void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2, int size)
+void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2, QColor color, int size)
 {
     QPainter p;
     p.begin(&_debug_img);
     p.setRenderHint(QPainter::Antialiasing);
-    p.setPen(QPen(Qt::black, size));
+    p.setPen(QPen(color, size));
     p.setBrush(Qt::NoBrush);
     p.drawLine(x1, y1, x2, y2);
     p.end();
@@ -190,14 +196,19 @@ void SingleImagePalm::bfs()
         nodes[nx][ny]._valid = true;
         if(max_dist == -1.0f || d > max_dist)
             max_dist = d;
-        Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
-        Queue.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
-        Queue.push(ImageNode(nx, ny+1, nx, ny, d+1));
-        Queue.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
-        Queue.push(ImageNode(nx+1, ny, nx, ny, d+1));
+        //upwards
         Queue.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
         Queue.push(ImageNode(nx, ny-1, nx, ny, d+1));
         Queue.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
+
+        //sideways
+        Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
+        Queue.push(ImageNode(nx+1, ny, nx, ny, d+1));
+
+        //downwards
+        Queue.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
+        Queue.push(ImageNode(nx, ny+1, nx, ny, d+1));
+        Queue.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
     }
 
     if(_max_dist == -1.0f && max_dist > 0)
@@ -354,7 +365,7 @@ void SingleImagePalm::inferKing()
     }
 }
 
-void SingleImagePalm::inferSkeleton()
+void SingleImagePalm::inferRawSkeleton()
 {
     printf("inferring skeleton...\n");
     if(_max_kingdom <= 0)
@@ -456,6 +467,67 @@ void SingleImagePalm::inferSkeleton()
     }
 
     if(!nodes.empty())
+        _raw_skeleton = nodes[0];
+}
+
+void SingleImagePalm::extractMainBranch()
+{
+    printf("extracting main branch...\n");
+    if(!_raw_skeleton)
+        return;
+
+    //1. bfs to find the first branching node
+    std::queue <BDLSkeletonNode *> Queue;
+    Queue.push(_raw_skeleton);
+
+    BDLSkeletonNode *first_branching_node = NULL;
+    std::vector <BDLSkeletonNode *> travelled;
+
+    while(!Queue.empty())
+    {
+        BDLSkeletonNode *node = Queue.front();
+        Queue.pop();
+
+        travelled.push_back(node);
+        if(node->_children.size() > 1)
+        {
+            first_branching_node = node;
+            break;
+        }
+
+        for(unsigned int i=0; i<node->_children.size(); i++)
+            Queue.push(node->_children[i]);
+    }
+
+    std::vector <BDLSkeletonNode *> nodes;
+    std::vector <osg::Vec2> edges;//list of <par,child>
+    for(unsigned int i=0; i<travelled.size(); i++)
+    {
+        //in image space, i.e. origin is left-top corner
+        BDLSkeletonNode *node = new BDLSkeletonNode;
+        node->_sx = travelled[i]->_sx;
+        node->_sy = travelled[i]->_sy;
+        node->_sz = travelled[i]->_sz;
+
+        nodes.push_back(node);
+        if(i>0)
+            edges.push_back(osg::Vec2(i-1, i));
+    }
+
+    for(unsigned int i=0; i<edges.size(); i++)
+    {
+        osg::Vec2 e = edges[i];
+        int parent = int(e.x());
+        int child = int(e.y());
+
+        if(nodes[parent] && nodes[child])
+        {
+            nodes[parent]->_children.push_back(nodes[child]);
+            nodes[child]->_prev = nodes[parent];
+        }
+    }
+
+    if(!nodes.empty())
         _skeleton = nodes[0];
 }
 
@@ -513,16 +585,16 @@ void SingleImagePalm::visualize_king()
     }
 }
 
-void SingleImagePalm::visualize_skeleton(bool show_edge, bool show_node)
+void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, bool show_edge, QColor color)
 {
-    if(!_skeleton)
+    if(!root)
         return;
 
     //bfs to draw all the edges first
     if(show_edge)
     {
         std::queue <BDLSkeletonNode *> Queue;
-        Queue.push(_skeleton);
+        Queue.push(root);
         while(!Queue.empty())
         {
             BDLSkeletonNode *node = Queue.front();
@@ -536,7 +608,7 @@ void SingleImagePalm::visualize_skeleton(bool show_edge, bool show_node)
                 BDLSkeletonNode *child = node->_children[i];
                 int x2 = child->_sx;
                 int y2 = child->_sz;
-                drawLine(x1, y1, x2, y2);
+                drawLine(x1, y1, x2, y2, color);
 
                 Queue.push(child);
             }
@@ -547,7 +619,7 @@ void SingleImagePalm::visualize_skeleton(bool show_edge, bool show_node)
     if(show_node)
     {
         std::queue <BDLSkeletonNode *> Queue;
-        Queue.push(_skeleton);
+        Queue.push(root);
         while(!Queue.empty())
         {
             BDLSkeletonNode *node = Queue.front();
