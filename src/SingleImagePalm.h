@@ -158,7 +158,7 @@ class SingleImagePalm
         /*
          * visualize skeleton
          */
-        void visualize_skeleton();
+        void visualize_skeleton(bool show_node = true, bool show_edge = true);
 
     private:
         bool _verbose;

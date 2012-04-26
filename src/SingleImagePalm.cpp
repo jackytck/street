@@ -58,7 +58,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bin();
         visualize_kingdom();
         //visualize_king();
-        visualize_skeleton();
+        visualize_skeleton(true, true);
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -513,45 +513,52 @@ void SingleImagePalm::visualize_king()
     }
 }
 
-void SingleImagePalm::visualize_skeleton()
+void SingleImagePalm::visualize_skeleton(bool show_edge, bool show_node)
 {
     if(!_skeleton)
         return;
 
     //bfs to draw all the edges first
-    std::queue <BDLSkeletonNode *> Queue;
-    Queue.push(_skeleton);
-    while(!Queue.empty())
+    if(show_edge)
     {
-        BDLSkeletonNode *node = Queue.front();
-        Queue.pop();
-
-        int x1 = node->_sx;
-        int y1 = node->_sz;
-
-        for(unsigned int i=0; i<node->_children.size(); i++)
+        std::queue <BDLSkeletonNode *> Queue;
+        Queue.push(_skeleton);
+        while(!Queue.empty())
         {
-            BDLSkeletonNode *child = node->_children[i];
-            int x2 = child->_sx;
-            int y2 = child->_sz;
-            drawLine(x1, y1, x2, y2);
+            BDLSkeletonNode *node = Queue.front();
+            Queue.pop();
 
-            Queue.push(child);
+            int x1 = node->_sx;
+            int y1 = node->_sz;
+
+            for(unsigned int i=0; i<node->_children.size(); i++)
+            {
+                BDLSkeletonNode *child = node->_children[i];
+                int x2 = child->_sx;
+                int y2 = child->_sz;
+                drawLine(x1, y1, x2, y2);
+
+                Queue.push(child);
+            }
         }
     }
 
     //bfs to draw nodes
-    Queue.push(_skeleton);
-    while(!Queue.empty())
+    if(show_node)
     {
-        BDLSkeletonNode *node = Queue.front();
-        Queue.pop();
+        std::queue <BDLSkeletonNode *> Queue;
+        Queue.push(_skeleton);
+        while(!Queue.empty())
+        {
+            BDLSkeletonNode *node = Queue.front();
+            Queue.pop();
 
-        int x1 = node->_sx;
-        int y1 = node->_sz;
-        airbrush(x1, y1);
+            int x1 = node->_sx;
+            int y1 = node->_sz;
+            airbrush(x1, y1);
 
-        for(unsigned int i=0; i<node->_children.size(); i++)
-            Queue.push(node->_children[i]);
+            for(unsigned int i=0; i<node->_children.size(); i++)
+                Queue.push(node->_children[i]);
+        }
     }
 }
