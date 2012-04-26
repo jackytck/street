@@ -145,6 +145,18 @@ class SingleImagePalm
         void extractMainBranch();
 
         /*
+         * though robust, bfs from root and construct a skeleton does not work
+         * so line sweep inside segmentation to get the main branch first
+         * note: it goes from root to the top without stopping
+         * the locus will be stored in _main_branch_locus
+         */
+        void lineSweep();
+
+        /*
+         * ### Debug Visualizations ###
+         */
+
+        /*
          * visualize bfs distance as scalar field
          */
         void visualize_bfs();
@@ -163,6 +175,11 @@ class SingleImagePalm
          * visualize kingdom
          */
         void visualize_king();
+
+        /*
+         * visualize line sweep of main branch
+         */
+        void visualize_linesweep();
 
         /*
          * visualize skeleton
@@ -189,6 +206,7 @@ class SingleImagePalm
         std::vector <osg::Vec2> _kings;//map the i-th kingdom to the position of king
         BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
+        std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
 };
 
 #endif

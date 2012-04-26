@@ -60,8 +60,9 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bin();
         visualize_kingdom();
         //visualize_king();
-        visualize_skeleton(_raw_skeleton, true, true);
-        visualize_skeleton(_skeleton, true, true, Qt::black);
+        //visualize_skeleton(_raw_skeleton, true, true);
+        //visualize_skeleton(_skeleton, true, true, Qt::black);
+        visualize_linesweep();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -85,12 +86,15 @@ void SingleImagePalm::grow()
     {
         if(findRoot())
         {
+            //does not work
             bfs();
             assignBin();
             inferKingdom();
-            inferKing();
-            inferRawSkeleton();
-            extractMainBranch();
+            //inferKing();
+            //inferRawSkeleton();
+            //extractMainBranch();
+
+            lineSweep();
         }
     }
 }
@@ -531,6 +535,52 @@ void SingleImagePalm::extractMainBranch()
         _skeleton = nodes[0];
 }
 
+void SingleImagePalm::lineSweep()
+{
+    printf("lineSweep()...\n");
+    int query = _root.x();
+    int level = _root.y();
+
+    while(level >= 0 && query >= 0)
+    {
+        int left = query;
+        int right = query;
+
+        while(isInside(left, level))
+            left--;
+        left++;
+        while(isInside(right, level))
+            right++;
+        right--;
+
+        int mid = (left + right) / 2;
+        _main_branch_locus.push_back(osg::Vec2(mid, level));
+        level--;
+
+        if(isInside(mid, level-1))
+        {
+            query = mid;
+            continue;
+        }
+        else if(isInside(mid-1, level-1))
+        {
+            query = mid-1;
+            continue;
+        }
+        else if(isInside(mid+1, level-1))
+        {
+            query = mid+1;
+            continue;
+        }
+        else
+            break;
+    }
+
+    //debug
+    //for(unsigned int i=0; i<_main_branch_locus.size(); i++)
+    //    printf("(%d,%d)\n", int(_main_branch_locus[i].x()), int(_main_branch_locus[i].y()));
+}
+
 void SingleImagePalm::visualize_bfs()
 {
     if(_max_dist <= 0.0f)
@@ -632,5 +682,14 @@ void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, 
             for(unsigned int i=0; i<node->_children.size(); i++)
                 Queue.push(node->_children[i]);
         }
+    }
+}
+
+void SingleImagePalm::visualize_linesweep()
+{
+    for(unsigned int i=0; i<_main_branch_locus.size(); i++)
+    {
+        osg::Vec2 n = _main_branch_locus[i];
+        airbrush(n.x(), n.y(), 5, 5, Qt::blue);
     }
 }
