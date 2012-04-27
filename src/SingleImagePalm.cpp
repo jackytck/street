@@ -558,7 +558,7 @@ void SingleImagePalm::lineSweep()
         right--;
 
         int mid = (left + right) / 2;
-        if(xs.size() > 300 && std > 0.0f && abs(mid - query) > 1.5f * std)//hard-code: enforce at least 300 records
+        if(xs.size() > 300 && std > 0.0f && abs(mid - query) > 1.0f * std)//hard-code: enforce at least 300 records
             mid = query;
         _main_branch_locus.push_back(osg::Vec2(mid, level));
         xs.push_back(mid);
@@ -595,22 +595,138 @@ long long SingleImagePalm::detectBranchingConvolution(int x, int y)
 
     //convolute with a mask like this: -><-
     //inside segmentation gives 1, otherwise 0
-    int length = 300;//hard-code
+    int length = 500;//hard-code
 
-    //y = k
-    for(int i=x-length; i<=x+length; i++)
+    //note: smaller y is higher in image space
+    //y = k (left)
+    for(int i=x-length; i<0; i++)
+    {
         if(isInside(i, y))
             ret++;
+        else
+            break;
+    }
 
-    //y = x
-    for(int i=1; i<length; i++)
-        if(isInside(x+i, y+i))
+    //y = k (right)
+    for(int i=1; i<=x+length; i++)
+    {
+        if(isInside(i, y))
             ret++;
+        else
+            break;
+    }
 
-    //y = -x
+    //y = x (up)
     for(int i=1; i<length; i++)
+    {
+        if(isInside(x+i, y-i))
+            ret++;
+        else
+            break;
+    }
+
+    //y = x (down)
+    for(int i=1; i<length; i++)
+    {
         if(isInside(x-i, y+i))
             ret++;
+        else
+            break;
+    }
+
+    //y = -x (up)
+    for(int i=1; i<length; i++)
+    {
+        if(isInside(x-i, y-i))
+            ret++;
+        else
+            break;
+    }
+
+    //y = -x (down)
+    for(int i=1; i<length; i++)
+    {
+        if(isInside(x-i, y+i))
+            ret++;
+        else
+            break;
+    }
+
+    //y = 2.4142135623730945x
+    for(int i=1; i<length; i++)
+    {
+        int fx = y - 2.4142135623730945 * i;
+        if(isInside(x+i, fx))
+            ret++;
+        else
+            break;
+    }
+
+    //y = -2.4142135623730945x
+    for(int i=1; i<length; i++)
+    {
+        int fx = y - 2.4142135623730945 * i;
+        if(isInside(x-i, fx))
+            ret++;
+        else
+            break;
+    }
+
+    //y = 0.41421356237309509x
+    for(int i=1; i<length; i++)
+    {
+        int fx = y - 0.41421356237309509 * i;
+        if(isInside(x+i, fx))
+            ret++;
+        else
+            break;
+    }
+
+    //y = -0.41421356237309509x
+    for(int i=1; i<length; i++)
+    {
+        int fx = y - 0.41421356237309509 * i;
+        if(isInside(x-i, fx))
+            ret++;
+        else
+            break;
+    }
+
+    return ret;
+}
+
+long long SingleImagePalm::detectBranchingBlockFilling(int cx, int cy)
+{
+    long long ret = 0;
+
+    int max_k = std::min(_w, _h) / 2;
+    //construct a (2k+1)x(2K+1) squre, i.e. 3x3, 5x5, 7x7, ...
+    for(int k=1; k<max_k; k++)
+    {
+        int x, y;
+        for(int s=-1; s<=1; s+=2)//sign
+        {
+            //left and right, including corners
+            x = s * k;
+            for(y=-k; y<=k; y++)
+            {
+                if(isInside(cx + x, cy + y))
+                    ret++;
+                else
+                    return ret;
+            }
+
+            //bottom and top, excluding corners
+            y = s * k;
+            for(x=-k+1; x<=k-1; x++)
+            {
+                if(isInside(cx + x, cy + y))
+                    ret++;
+                else
+                    return ret;
+            }
+        }
+    }
 
     return ret;
 }
@@ -624,7 +740,9 @@ void SingleImagePalm::inferBestTerminalNode()
     for(unsigned int i=0; i<_main_branch_locus.size(); i++)
     {
         osg::Vec2 n = _main_branch_locus[i];
-        long long score = detectBranchingConvolution(n.x(), n.y());
+        long long score_con = detectBranchingConvolution(n.x(), n.y());
+        long long score_blk = detectBranchingBlockFilling(n.x(), n.y());
+        long long score = score_con + 0.45 * pow(score_blk, 0.5);
         if(_max_convolute_score == -1 || score > _max_convolute_score)
         {
             _max_convolute_score = score;
@@ -634,8 +752,8 @@ void SingleImagePalm::inferBestTerminalNode()
     }
 
     //debug log
-    //for(unsigned int i=0; i<_convolute_score.size(); i++)
-    //    printf("%lld\n", _convolute_score[i]);
+    for(unsigned int i=0; i<_convolute_score.size(); i++)
+        printf("%lld\n", _convolute_score[i]);
 }
 
 void SingleImagePalm::visualize_bfs()

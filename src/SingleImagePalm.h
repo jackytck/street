@@ -158,6 +158,12 @@ class SingleImagePalm
         long long detectBranchingConvolution(int x, int y);
 
         /*
+         * enlarge a pixel to 2x2, 3x3, 4x4, ..., etc
+         * until it reaches the segmentation boundary
+         */
+        long long detectBranchingBlockFilling(int x, int y);
+
+        /*
          * pick the best terminal node from result of lineSweep()
          * by convoluting with a special mask
          * result will be set in _first_branching_node
