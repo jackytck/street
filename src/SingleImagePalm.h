@@ -153,6 +153,18 @@ class SingleImagePalm
         void lineSweep();
 
         /*
+         * do convolution at a given point with a hard-coded mask
+         */
+        long long detectBranchingConvolution(int x, int y);
+
+        /*
+         * pick the best terminal node from result of lineSweep()
+         * by convoluting with a special mask
+         * result will be set in _first_branching_node
+         */
+        void inferBestTerminalNode();
+
+        /*
          * ### Debug Visualizations ###
          */
 
@@ -196,6 +208,7 @@ class SingleImagePalm
         QImage _img;
         QImage _seg;
         osg::Vec2 _root;
+        osg::Vec2 _first_branching_node;
         QImage _debug_img;//for debugging purpose only
         int _w;
         int _h;
@@ -207,6 +220,8 @@ class SingleImagePalm
         BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
         std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
+        std::vector <long long> _convolute_score;
+        long long _max_convolute_score;
 };
 
 #endif

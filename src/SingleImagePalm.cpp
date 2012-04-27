@@ -96,6 +96,7 @@ void SingleImagePalm::grow()
             //extractMainBranch();
 
             lineSweep();
+            inferBestTerminalNode();
         }
     }
 }
@@ -588,6 +589,55 @@ void SingleImagePalm::lineSweep()
     //    printf("(%d,%d)\n", int(_main_branch_locus[i].x()), int(_main_branch_locus[i].y()));
 }
 
+long long SingleImagePalm::detectBranchingConvolution(int x, int y)
+{
+    long long ret = 0;
+
+    //convolute with a mask like this: -><-
+    //inside segmentation gives 1, otherwise 0
+    int length = 300;//hard-code
+
+    //y = k
+    for(int i=x-length; i<=x+length; i++)
+        if(isInside(i, y))
+            ret++;
+
+    //y = x
+    for(int i=1; i<length; i++)
+        if(isInside(x+i, y+i))
+            ret++;
+
+    //y = -x
+    for(int i=1; i<length; i++)
+        if(isInside(x-i, y+i))
+            ret++;
+
+    return ret;
+}
+
+void SingleImagePalm::inferBestTerminalNode()
+{
+    if(_main_branch_locus.empty())
+        return;
+    _convolute_score.clear();
+    _max_convolute_score = -1;
+    for(unsigned int i=0; i<_main_branch_locus.size(); i++)
+    {
+        osg::Vec2 n = _main_branch_locus[i];
+        long long score = detectBranchingConvolution(n.x(), n.y());
+        if(_max_convolute_score == -1 || score > _max_convolute_score)
+        {
+            _max_convolute_score = score;
+            _first_branching_node = n;
+        }
+        _convolute_score.push_back(score);
+    }
+
+    //debug log
+    //for(unsigned int i=0; i<_convolute_score.size(); i++)
+    //    printf("%lld\n", _convolute_score[i]);
+}
+
 void SingleImagePalm::visualize_bfs()
 {
     if(_max_dist <= 0.0f)
@@ -694,9 +744,15 @@ void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, 
 
 void SingleImagePalm::visualize_linesweep()
 {
-    for(unsigned int i=0; i<_main_branch_locus.size(); i++)
+    if(_main_branch_locus.size() == _convolute_score.size())
     {
-        osg::Vec2 n = _main_branch_locus[i];
-        airbrush(n.x(), n.y(), 5, 5, Qt::blue);
+        for(unsigned int i=0; i<_main_branch_locus.size(); i++)
+        {
+            osg::Vec2 n = _main_branch_locus[i];
+            int s = 2 + (_convolute_score[i] / float(_max_convolute_score)) * 8;
+            airbrush(n.x(), n.y(), s, s, Qt::black);
+        }
+
+        airbrush(_first_branching_node.x(), _first_branching_node.y());
     }
 }
