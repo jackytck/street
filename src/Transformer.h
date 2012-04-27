@@ -324,6 +324,13 @@ class Transformer
          * t_h: height of input palm texture
          */
         static std::vector <osg::Vec2> texture_coords_palm(std::vector <osg::Vec3> all_v, int t_w, int t_h);
+
+        /*
+         * given a list of floats, return the standard deviation of the series
+         * return -1.0f if the list is empty
+         * note: this is equivalent to Google Spreadsheet's STDEVP()
+         */
+        static float standard_deviation(std::vector <float> list);
 };
 
 #endif
