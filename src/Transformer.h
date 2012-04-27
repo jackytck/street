@@ -327,10 +327,11 @@ class Transformer
 
         /*
          * given a list of floats, return the standard deviation of the series
-         * return -1.0f if the list is empty
+         * last: only consider the last 'last' records, i.e. list[-last:] in python, -1 to consider all records
+         * return -1.0f if the list is empty or last is 0
          * note: this is equivalent to Google Spreadsheet's STDEVP()
          */
-        static float standard_deviation(std::vector <float> list);
+        static float standard_deviation(std::vector <float> list, int last = -1);
 };
 
 #endif

@@ -1689,18 +1689,23 @@ std::vector <osg::Vec2> Transformer::texture_coords_palm(std::vector <osg::Vec3>
     return ret;
 }
 
-float Transformer::standard_deviation(std::vector <float> list)
+float Transformer::standard_deviation(std::vector <float> list, int last)
 {
     float std = -1.0f;
-    if(list.empty())
+    if(list.empty() || last == 0)
         return std;
 
     std = 0.0f;
     double n = list.size(), mean = 0;
-    for(unsigned int i=0; i<list.size(); i++)
+    int len = list.size();
+    if(last < 0 || last > len)
+        last = len;
+    else
+        n = last;
+    for(int i=len-1; i>= len-last; i--)
         mean += list[i];
     mean /= n;
-    for(unsigned int i=0; i<list.size(); i++)
+    for(int i=len-1; i>= len-last; i--)
         std += (list[i] - mean) * (list[i] - mean);
     std = sqrt(std / float(n));
     return std;

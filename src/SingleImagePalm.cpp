@@ -1,6 +1,7 @@
 #include "SingleImagePalm.h"
 #include "ISPLoader.h"
 #include <queue>
+#include "Transformer.h"
 
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
 {
@@ -540,6 +541,8 @@ void SingleImagePalm::lineSweep()
     printf("lineSweep()...\n");
     int query = _root.x();
     int level = _root.y();
+    std::vector <float> xs;
+    float std = -1.0f;
 
     while(level >= 0 && query >= 0)
     {
@@ -554,7 +557,11 @@ void SingleImagePalm::lineSweep()
         right--;
 
         int mid = (left + right) / 2;
+        if(xs.size() > 300 && std > 0.0f && abs(mid - query) > 1.5f * std)//hard-code: enforce at least 300 records
+            mid = query;
         _main_branch_locus.push_back(osg::Vec2(mid, level));
+        xs.push_back(mid);
+        std = Transformer::standard_deviation(xs, 300);//only consider the 300-sd
         level--;
 
         if(isInside(mid, level-1))
