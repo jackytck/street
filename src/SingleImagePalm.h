@@ -2,8 +2,9 @@
 #define __SINGLEIMAGEPALM__H
 
 #include <vector>
-#include <osg/Vec3>
 #include <osg/Vec2>
+#include <osg/Vec3>
+#include <osg/Vec4>
 #include <string>
 #include <QImage>
 #include <QPainter>
@@ -70,12 +71,17 @@ class SingleImagePalm
         /*
          * for debugging and illustration purpose only
          */
-        void drawLine(int x1, int y1, int x2, int y2, QColor color = Qt::green, int size = 5);
+        void drawLine(int x1, int y1, int x2, int y2, QColor color = Qt::green, int size = 5, QImage *img = NULL);
 
         /*
          * test if a given point is inside the segmentation
          */
         inline bool isInside(int x, int y);
+
+        /*
+         * test if a given point is an edge point
+         */
+        inline bool isEdge(int x, int y);
 
         /*
          * map a scalar value to a hue
@@ -164,6 +170,17 @@ class SingleImagePalm
         long long detectBranchingBlockFilling(int x, int y);
 
         /*
+         * produce line edges by LSD
+         */
+        void produceLineEdge();
+
+        /*
+         * convolute with the edge map
+         * higher return value indicates higher number of edges
+         */
+        long long convoluteEdgeMap(int x, int y);
+
+        /*
          * pick the best terminal node from result of lineSweep()
          * by convoluting with a special mask
          * result will be set in _first_branching_node
@@ -233,6 +250,8 @@ class SingleImagePalm
         std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
         std::vector <long long> _convolute_score;
         long long _max_convolute_score;
+        std::vector <osg::Vec4> _edges;
+        QImage _edge_map;//the edge map drawn from results of LSD
 };
 
 #endif

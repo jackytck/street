@@ -3,7 +3,6 @@
 #include <queue>
 #include "Transformer.h"
 #include "LineSegmentDetector.h"
-#include <osg/Vec4>
 
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
 {
@@ -41,6 +40,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     //_img.save(QString("/tmp/test_tiff.png"), "PNG", 80);test if the qt plugin works
     _debug_img = QImage(iw, ih, QImage::Format_ARGB32);
     _debug_img.fill(0);
+    _edge_map = QImage(iw, ih, QImage::Format_ARGB32);
+    _edge_map.fill(0);
     _w = iw;
     _h = ih;
     _max_dist = -1.0f;
@@ -65,10 +66,14 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_king();
         //visualize_skeleton(_raw_skeleton, true, true);
         //visualize_skeleton(_skeleton, true, true, Qt::black);
+        //visualize_edge();
         visualize_linesweep();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
+
+        //if(!_edge_map.isNull())
+        //    _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
 
         printf("debug image is outputted at '%s'\n", path);
     }
@@ -89,8 +94,6 @@ void SingleImagePalm::grow()
     {
         if(findRoot())
         {
-            if(false)
-            {
             //does not work
             bfs();
             assignBin();
@@ -100,9 +103,8 @@ void SingleImagePalm::grow()
             //extractMainBranch();
 
             lineSweep();
+            produceLineEdge();
             inferBestTerminalNode();
-            }
-            visualize_edge();
         }
     }
 }
@@ -118,10 +120,14 @@ void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color)
     p.end();
 }
 
-void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2, QColor color, int size)
+void SingleImagePalm::drawLine(int x1, int y1, int x2, int y2, QColor color, int size, QImage *img)
 {
+    QImage *board = &_debug_img;
+    if(img)
+        board = img;
+
     QPainter p;
-    p.begin(&_debug_img);
+    p.begin(board);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(color, size));
     p.setBrush(Qt::NoBrush);
@@ -136,6 +142,18 @@ bool SingleImagePalm::isInside(int x, int y)
     if(!_seg.isNull() && x >= 0 && x < _w && y >= 0 && y < _h)
     {
         QRgb c = _seg.pixel(x, y);
+        if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
+            ret = true;
+    }
+    return ret;
+}
+
+bool SingleImagePalm::isEdge(int x, int y)
+{
+    bool ret = false;
+    if(!_edge_map.isNull() && x >= 0 && x < _w && y >= 0 && y < _h)
+    {
+        QRgb c = _edge_map.pixel(x, y);
         if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
             ret = true;
     }
@@ -564,11 +582,23 @@ void SingleImagePalm::lineSweep()
         right--;
 
         int mid = (left + right) / 2;
-        if(xs.size() > 300 && std > 0.0f && abs(mid - query) > 1.0f * std)//hard-code: enforce at least 300 records
+        int diff = abs(mid - query);
+        printf("%d  sd(%f)\n", abs(mid-query), 1.5*std);
+
+        if(xs.size() > 500 && std > 0.0f && diff > 10 && diff > 1.0f * std)//hard-code: enforce at least 300 records
             mid = query;
+        else if(xs.size() > 500 && std == 0.0f)
+        {
+            float sd_all = Transformer::standard_deviation(xs);
+            if(abs(mid - query) > sd_all)
+            {
+                int sign = mid - query > 0 ? 1 : -1;
+                mid = query + sign * sd_all;
+            }
+        }
         _main_branch_locus.push_back(osg::Vec2(mid, level));
         xs.push_back(mid);
-        std = Transformer::standard_deviation(xs, 300);//only consider the 300-sd
+        std = Transformer::standard_deviation(xs, 500);//only consider the 300-sd
         level--;
 
         if(isInside(mid, level-1))
@@ -601,7 +631,7 @@ long long SingleImagePalm::detectBranchingConvolution(int x, int y)
 
     //convolute with a mask like this: -><-
     //inside segmentation gives 1, otherwise 0
-    int length = 500;//hard-code
+    int length = 800;//hard-code
 
     //note: smaller y is higher in image space
     //y = k (left)
@@ -737,8 +767,34 @@ long long SingleImagePalm::detectBranchingBlockFilling(int cx, int cy)
     return ret;
 }
 
+void SingleImagePalm::produceLineEdge()
+{
+    printf("produceLineEdge()...\n");
+    LineSegmentDetector lsd = LineSegmentDetector(_img);
+    _edges = lsd.run();
+
+    for(unsigned int i=0; i<_edges.size(); i++)
+    {
+        osg::Vec4 v = _edges[i];
+        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::white, 1, &_edge_map);
+    }
+}
+
+long long SingleImagePalm::convoluteEdgeMap(int x, int y)
+{
+    long long ret = 0;
+    int len = 50;
+    int len2 = len / 2;
+    for(int i=x-len2; i<=x+len2; i++)
+        for(int j=y-len2; j<=y+len2; j++)
+            if(isEdge(i, j))
+                ret++;
+    return ret;
+}
+
 void SingleImagePalm::inferBestTerminalNode()
 {
+    printf("inferBestTerminalNode()...\n");
     if(_main_branch_locus.empty())
         return;
     _convolute_score.clear();
@@ -873,7 +929,10 @@ void SingleImagePalm::visualize_linesweep()
         for(unsigned int i=0; i<_main_branch_locus.size(); i++)
         {
             osg::Vec2 n = _main_branch_locus[i];
-            int s = 2 + (_convolute_score[i] / float(_max_convolute_score)) * 8;
+            long long cs = _convolute_score[i];
+            if(cs < 0)
+                cs = 0;
+            int s = 2 + (cs / float(_max_convolute_score)) * 8;
             airbrush(n.x(), n.y(), s, s, Qt::black);
         }
 
@@ -883,13 +942,9 @@ void SingleImagePalm::visualize_linesweep()
 
 void SingleImagePalm::visualize_edge()
 {
-    LineSegmentDetector lsd = LineSegmentDetector(_img);
-    std::vector <osg::Vec4> edges = lsd.run();
-    for(unsigned int i=0; i<edges.size(); i++)
+    for(unsigned int i=0; i<_edges.size(); i++)
     {
-        osg::Vec4 v = edges[i];
-        //printf("%d %f %f %f %f\n", i, v.x(), v.y(), v.z(), v.w());
-
-        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 3);
+        osg::Vec4 v = _edges[i];
+        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 1);
     }
 }
