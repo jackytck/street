@@ -209,9 +209,9 @@ class SingleImagePalm
         void visualize_skeleton(BDLSkeletonNode *root, bool show_node = true, bool show_edge = true, QColor color = Qt::green);
 
         /*
-         * test LSD: Line Segment Detector
+         * visualize the edges by using LSD
          */
-        void test_LSD();
+        void visualize_edge();
 
     private:
         bool _verbose;

@@ -2,9 +2,8 @@
 #include "ISPLoader.h"
 #include <queue>
 #include "Transformer.h"
-extern "C" {
-    #include "lsd.h"
-}
+#include "LineSegmentDetector.h"
+#include <osg/Vec4>
 
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
 {
@@ -103,7 +102,7 @@ void SingleImagePalm::grow()
             lineSweep();
             inferBestTerminalNode();
             }
-            test_LSD();
+            visualize_edge();
         }
     }
 }
@@ -882,40 +881,15 @@ void SingleImagePalm::visualize_linesweep()
     }
 }
 
-void SingleImagePalm::test_LSD()
+void SingleImagePalm::visualize_edge()
 {
-    double * image;
-    double * out;
-    int x,y,i,j,n;
-    int X = 128;  /* x image size */
-    int Y = 128;  /* y image size */
-
-    /* create a simple image: left half black, right half gray */
-    image = (double *) malloc( X * Y * sizeof(double) );
-    if( image == NULL )
+    LineSegmentDetector lsd = LineSegmentDetector(_img);
+    std::vector <osg::Vec4> edges = lsd.run();
+    for(unsigned int i=0; i<edges.size(); i++)
     {
-      fprintf(stderr,"error: not enough memory\n");
-      exit(EXIT_FAILURE);
+        osg::Vec4 v = edges[i];
+        //printf("%d %f %f %f %f\n", i, v.x(), v.y(), v.z(), v.w());
+
+        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 3);
     }
-    for(x=0;x<X;x++)
-    for(y=0;y<Y;y++)
-      image[x+y*X] = x<X/2 ? 0.0 : 64.0; /* image(x,y) */
-
-
-    /* LSD call */
-    out = lsd(&n,image,X,Y);
-
-
-    /* print output */
-    printf("%d line segments found:\n",n);
-    for(i=0;i<n;i++)
-    {
-      for(j=0;j<7;j++)
-        printf("%f ",out[7*i+j]);
-      printf("\n");
-    }
-
-    /* free memory */
-    free( (void *) image );
-    free( (void *) out );
 }
