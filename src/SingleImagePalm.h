@@ -123,8 +123,9 @@ class SingleImagePalm
         /*
          * flood fill region
          * for inferring the connected component(s) in each bin
+         * return the populaton of this kingdom
          */
-        void floodFillAt(int x, int y, int label);
+        long long floodFillAt(int x, int y, int label);
 
         /*
          * infer kingdom by finding the connected component(s) in each bin
@@ -195,6 +196,11 @@ class SingleImagePalm
         void extractMainBranch2();
 
         /*
+         * dis-qualify all the kingdoms that overlap with the main branch
+         */
+        void dqMainbranchKingdom();
+
+        /*
          * ### Debug Visualizations ###
          */
 
@@ -210,8 +216,9 @@ class SingleImagePalm
 
         /*
          * visualize kingdom
+         * show_all: true to show all, else only show the available state according to _kingdom_states
          */
-        void visualize_kingdom();
+        void visualize_kingdom(bool show_all = true);
 
         /*
          * visualize kingdom
@@ -259,6 +266,7 @@ class SingleImagePalm
         int _max_kingdom;//max kingdom id
         std::vector <std::vector <ImageNode> > _nodes;
         std::vector <osg::Vec2> _kings;//map the i-th kingdom to the position of king
+        std::vector <long long> _population;//i-th kingdom has population _population[i]
         BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
         std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
@@ -268,6 +276,7 @@ class SingleImagePalm
         QImage _edge_map;//the edge map drawn from results of LSD
         int _lower_foliage_y;
         int _higher_foliage_y;
+        std::vector <bool> _kingdom_states;//false if it overlaps with main-branch or if it is consumed
 };
 
 #endif

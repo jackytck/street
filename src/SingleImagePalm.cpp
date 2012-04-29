@@ -68,10 +68,10 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bfs();
         //visualize_bin();
         //visualize_king();
-        //visualize_edge();
         //visualize_linesweep();
         //visualize_branch_search_limit();
-        visualize_kingdom();
+        visualize_kingdom(false);
+        visualize_edge();
         visualize_skeleton(_raw_skeleton, true, true);
 
         if(!_debug_img.isNull())
@@ -111,6 +111,7 @@ void SingleImagePalm::grow()
             assignBin();
             inferKingdom();
             inferKing();
+            dqMainbranchKingdom();
         }
     }
 }
@@ -168,7 +169,7 @@ bool SingleImagePalm::isEdge(int x, int y)
 
 QColor SingleImagePalm::mapColor(float scalar)
 {
-    int h = int(scalar * 360) % 360;
+    int h = int(round(scalar * 360)) % 360;
     int s = 255;
     int v = 255;
     return QColor::fromHsv(h, s, v);
@@ -206,7 +207,7 @@ void SingleImagePalm::setupChildren()
 
 void SingleImagePalm::bfs()
 {
-    printf("bfs()...\n");
+    printf("bfs...\n");
     std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
     std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
 
@@ -253,13 +254,13 @@ void SingleImagePalm::bfs()
     if(_nodes.empty())
     {
         _nodes = nodes;
-        setupChildren();
+        //setupChildren();
     }
 }
 
 void SingleImagePalm::assignBin(int divide)
 {
-    printf("assignBin()...\n");
+    printf("assignBin...\n");
     if(_nodes.empty() || _max_dist <= 0.0f)
         return;
 
@@ -271,7 +272,7 @@ void SingleImagePalm::assignBin(int divide)
             ImageNode n = _nodes[x][y];
             if(n._valid)
             {
-                int bin = int(n._dist / bin_len);
+                int bin = floor((n._dist - 0.5 * bin_len) / bin_len) + 1;
                 _nodes[x][y]._bin = bin;
                 if(_max_bin == -1 || bin > _max_bin)
                     _max_bin = bin;
@@ -291,13 +292,13 @@ ImageNode * SingleImagePalm::isGoodNeighbor(int x, int y, int bin)
     return ret;
 }
 
-void SingleImagePalm::floodFillAt(int x, int y, int label)
+long long SingleImagePalm::floodFillAt(int x, int y, int label)
 {
+    long long ret = 0;
     if(x < 0 || x >= _w || y < 0 || y >= _h)
-        return;
+        return ret;
 
     //bfs
-    int cnt = 0;
     int ref_bin = _nodes[x][y]._bin;
     std::queue <ImageNode *> Queue;
     Queue.push(&_nodes[x][y]);
@@ -311,13 +312,17 @@ void SingleImagePalm::floodFillAt(int x, int y, int label)
         int nx = n_p->_pos.x(), ny = n_p->_pos.y();
         n_p->_kingdom = label;
         n_p->_considered = true;
-        cnt++;
+        ret++;
 
-        ImageNode *a, *b, *c, *d;
-        a = isGoodNeighbor(nx-1, ny, ref_bin);
-        b = isGoodNeighbor(nx, ny+1, ref_bin);
-        c = isGoodNeighbor(nx+1, ny, ref_bin);
-        d = isGoodNeighbor(nx, ny-1, ref_bin);
+        ImageNode *a, *b, *c, *d, *e, *f, *g, *h;
+        a = isGoodNeighbor(nx-1, ny, ref_bin);//left
+        b = isGoodNeighbor(nx-1, ny+1, ref_bin);//down-left
+        c = isGoodNeighbor(nx, ny+1, ref_bin);//down
+        d = isGoodNeighbor(nx+1, ny+1, ref_bin);//down-right
+        e = isGoodNeighbor(nx+1, ny, ref_bin);//right
+        f = isGoodNeighbor(nx+1, ny-1, ref_bin);//up-right
+        g = isGoodNeighbor(nx, ny-1, ref_bin);//up
+        h = isGoodNeighbor(nx-1, ny-1, ref_bin);//up-left
         if(a)
             Queue.push(a);
         if(b)
@@ -326,13 +331,23 @@ void SingleImagePalm::floodFillAt(int x, int y, int label)
             Queue.push(c);
         if(d)
             Queue.push(d);
+        if(e)
+            Queue.push(e);
+        if(f)
+            Queue.push(f);
+        if(g)
+            Queue.push(g);
+        if(h)
+            Queue.push(h);
     }
-    //printf("kingdom(%d) population(%d)\n", label, cnt);
+    //printf("kingdom(%d) population(%lld)\n", label, ret);
+
+    return ret;
 }
 
 void SingleImagePalm::inferKingdom()
 {
-    printf("inferKingdom()...\n");
+    printf("inferKingdom...\n");
     if(_max_bin < 0)
         return;
 
@@ -347,7 +362,7 @@ void SingleImagePalm::inferKingdom()
         }
 
     //2. find connected component(s) for each bin
-    _max_kingdom = 0;
+    _max_kingdom = -1;
     for(int i=0; i<=_max_bin; i++)
     {
         std::vector <ImageNode *> ring = boxes[i];
@@ -359,15 +374,16 @@ void SingleImagePalm::inferKingdom()
                 continue;
 
             //using the bfs tree is incorrect, instead just flood fill the graph to infer the kingdom
-            floodFillAt(int(n._pos.x()), int(n._pos.y()), _max_kingdom);
             _max_kingdom++;
+            long long population = floodFillAt(int(n._pos.x()), int(n._pos.y()), _max_kingdom);
+            _population.push_back(population);
         }
     }
 }
 
 void SingleImagePalm::inferKing()
 {
-    printf("inferKing()...\n");
+    printf("inferKing...\n");
     if(_max_kingdom <= 0)
         return;
     _kings = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
@@ -571,7 +587,7 @@ void SingleImagePalm::extractMainBranch()
 
 void SingleImagePalm::lineSweep()
 {
-    printf("lineSweep()...\n");
+    printf("lineSweep...\n");
     int query = _root.x();
     int level = _root.y();
     std::vector <float> xs;
@@ -804,7 +820,7 @@ long long SingleImagePalm::detectBranchingBlockFilling(int cx, int cy)
 
 void SingleImagePalm::produceLineEdge()
 {
-    printf("produceLineEdge()...\n");
+    printf("produceLineEdge...\n");
     LineSegmentDetector lsd = LineSegmentDetector(_img);
     _edges = lsd.run();
 
@@ -829,7 +845,7 @@ long long SingleImagePalm::convoluteEdgeMap(int x, int y)
 
 void SingleImagePalm::inferBestTerminalNode()
 {
-    printf("inferBestTerminalNode()...\n");
+    printf("inferBestTerminalNode...\n");
     if(_main_branch_locus.empty())
         return;
     int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
@@ -863,7 +879,7 @@ void SingleImagePalm::inferBestTerminalNode()
 
 void SingleImagePalm::extractMainBranch2()
 {
-    printf("extractMainBranch2()...\n");
+    printf("extractMainBranch2...\n");
     if(_main_branch_locus.empty() || _first_branching_node_idx == -1)
         return;
 
@@ -942,6 +958,29 @@ void SingleImagePalm::extractMainBranch2()
         _raw_skeleton = nodes[0];
 }
 
+void SingleImagePalm::dqMainbranchKingdom()
+{
+    printf("dqMainbranchKingdom...\n");
+    if(_max_kingdom <= 0)
+        return;
+    _kingdom_states = std::vector <bool> (_max_kingdom+1, true);
+
+    //1. transverse from root to first branching node
+    osg::Vec2 cur = _root;
+    while(int(cur.x()) != -1 && int(cur.y()) != -1)
+    {
+        int nx = int(cur.x());
+        int ny = int(cur.y());
+
+        //2. dq the respective kingdom
+        _kingdom_states[_nodes[nx][ny]._kingdom] = false;
+
+        //airbrush(nx, ny, 5, 5, Qt::yellow);
+        osg::Vec2 par = _nodes[nx][ny]._prev;
+        cur = par;
+    }
+}
+
 void SingleImagePalm::visualize_bfs()
 {
     if(_max_dist <= 0.0f)
@@ -971,8 +1010,9 @@ void SingleImagePalm::visualize_bin()
         }
 }
 
-void SingleImagePalm::visualize_kingdom()
+void SingleImagePalm::visualize_kingdom(bool show_all)
 {
+    printf("visualize_kingdom...\n");
     if(_max_kingdom <= 0)
         return;
 
@@ -982,7 +1022,8 @@ void SingleImagePalm::visualize_kingdom()
 		{
             ImageNode n = _nodes[x][y];
             if(n._valid)
-                airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
+                if(show_all || _kingdom_states[n._kingdom])
+                    airbrush(x, y, 1, 1, mapColor(n._kingdom/mk));
         }
 }
 
@@ -998,6 +1039,7 @@ void SingleImagePalm::visualize_king()
 
 void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, bool show_edge, QColor node_color, QColor edge_color)
 {
+    printf("visualize_skeleton...\n");
     if(!root)
         return;
 
@@ -1048,6 +1090,7 @@ void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, 
 
 void SingleImagePalm::visualize_linesweep()
 {
+    printf("visualize_linesweep...\n");
     if(_main_branch_locus.size() == _convolute_score.size())
     {
         for(unsigned int i=0; i<_main_branch_locus.size(); i++)
@@ -1066,6 +1109,7 @@ void SingleImagePalm::visualize_linesweep()
 
 void SingleImagePalm::visualize_edge()
 {
+    printf("visualize_edge...\n");
     for(unsigned int i=0; i<_edges.size(); i++)
     {
         osg::Vec4 v = _edges[i];
@@ -1075,6 +1119,7 @@ void SingleImagePalm::visualize_edge()
 
 void SingleImagePalm::visualize_branch_search_limit()
 {
+    printf("visualize_branch_search_limit...\n");
     //int min_search_y = (_lower_foliage_y - _higher_foliage_y) * 0.618f + _higher_foliage_y;//golden ratio
     int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
     drawLine(0, _higher_foliage_y, _w-1, _higher_foliage_y, Qt::red);
