@@ -145,7 +145,7 @@ class SingleImagePalm
 
         /*
          * extract the main branch from the raw skeleton
-         * note: this is the only reliable and robust info we can get from it
+         * note: this is the only reliable and robust info we can get from raw branch
          * the result is stored in _skeleton
          */
         void extractMainBranch();
@@ -188,6 +188,13 @@ class SingleImagePalm
         void inferBestTerminalNode();
 
         /*
+         * sample and construct the main branch from line swept points
+         * this replaces the original extractMainBranch()
+         * result is stored in _skeleton
+         */
+        void extractMainBranch2();
+
+        /*
          * ### Debug Visualizations ###
          */
 
@@ -221,9 +228,10 @@ class SingleImagePalm
          * root: root of skeleton
          * show_node: print the nodes
          * show_edge: print the edges
-         * color: color of edges
+         * node_color: color of nodes
+         * edge_color: color of edges
          */
-        void visualize_skeleton(BDLSkeletonNode *root, bool show_node = true, bool show_edge = true, QColor color = Qt::green);
+        void visualize_skeleton(BDLSkeletonNode *root, bool show_node = true, bool show_edge = true, QColor node_color = Qt::magenta, QColor edge_color = Qt::black);
 
         /*
          * visualize the edges by using LSD
@@ -242,6 +250,7 @@ class SingleImagePalm
         QImage _seg;
         osg::Vec2 _root;
         osg::Vec2 _first_branching_node;
+        int _first_branching_node_idx;//index to _main_branch_locus
         QImage _debug_img;//for debugging purpose only
         int _w;
         int _h;

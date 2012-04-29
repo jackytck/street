@@ -52,6 +52,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _skeleton = NULL;
     _lower_foliage_y = -1;
     _higher_foliage_y = -1;
+    _first_branching_node_idx = -1;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -68,11 +69,10 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_bin();
         visualize_kingdom();
         //visualize_king();
-        //visualize_skeleton(_raw_skeleton, true, true);
-        //visualize_skeleton(_skeleton, true, true, Qt::black);
         //visualize_edge();
-        visualize_linesweep();
-        visualize_branch_search_limit();
+        //visualize_linesweep();
+        //visualize_branch_search_limit();
+        visualize_skeleton(_raw_skeleton, true, true);
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -110,6 +110,7 @@ void SingleImagePalm::grow()
             lineSweep();
             produceLineEdge();
             inferBestTerminalNode();
+            extractMainBranch2();
         }
     }
 }
@@ -847,6 +848,7 @@ void SingleImagePalm::inferBestTerminalNode()
             {
                 _max_convolute_score = score;
                 _first_branching_node = n;
+                _first_branching_node_idx = i;
             }
             _convolute_score.push_back(score);
         }
@@ -855,6 +857,87 @@ void SingleImagePalm::inferBestTerminalNode()
     //debug log
     //for(unsigned int i=0; i<_convolute_score.size(); i++)
     //    printf("%lld\n", _convolute_score[i]);
+}
+
+void SingleImagePalm::extractMainBranch2()
+{
+    printf("extractMainBranch2()...\n");
+    if(_main_branch_locus.empty() || _first_branching_node_idx == -1)
+        return;
+
+    //1. box height
+    int no_box = 10;
+    float max_h = (_first_branching_node - _root).length();
+    float box_h = max_h / no_box;
+
+    //2. put nodes into different bins
+    std::vector <std::vector <osg::Vec2> > boxes(no_box+1, std::vector <osg::Vec2>());
+    for(int i=0; i<=_first_branching_node_idx; i++)
+    {
+        osg::Vec2 v = _main_branch_locus[i];
+        float d = (v - _root).length();
+        int box_id = floor((d - 0.5 * box_h) / box_h) + 1;
+
+        if(box_id > 0 && box_id < no_box)
+            boxes[box_id].push_back(v);
+    }
+    //terminal nodes
+    boxes[0].push_back(_root);
+    boxes[no_box].push_back(_first_branching_node);
+
+    //3. find average of each bin
+    std::vector <osg::Vec2> kings;
+    for(unsigned int i=0; i<boxes.size(); i++)
+    {
+        std::vector <osg::Vec2> box = boxes[i];
+        double ax = 0, ay = 0;
+        long long cnt = 0;
+        for(unsigned int j=0; j<box.size(); j++)
+        {
+            ax += box[j].x();
+            ay += box[j].y();
+            cnt++;
+        }
+        if(cnt > 0)
+        {
+            ax /= cnt;
+            ay /= cnt;
+            kings.push_back(osg::Vec2(ax, ay));
+        }
+    }
+
+    //4. build BDLSkeleton
+    std::vector <BDLSkeletonNode *> nodes;
+    std::vector <osg::Vec2> edges;//list of <par,child>
+
+    for(unsigned int i=0; i<kings.size(); i++)
+    {
+        //in image space, i.e. origin is left-top corner
+        BDLSkeletonNode *node = new BDLSkeletonNode;
+        node->_sx = kings[i].x();
+        node->_sy = 0.0f;
+        node->_sz = kings[i].y();
+
+        nodes.push_back(node);
+        if(i != kings.size()-1)
+            edges.push_back(osg::Vec2(i, i+1));
+    }
+
+    for(unsigned int i=0; i<edges.size(); i++)
+    {
+        osg::Vec2 e = edges[i];
+        int parent = int(e.x());
+        int child = int(e.y());
+
+        if(nodes[parent] && nodes[child])
+        {
+            nodes[parent]->_children.push_back(nodes[child]);
+            nodes[child]->_prev = nodes[parent];
+        }
+    }
+
+    if(!nodes.empty())
+        _raw_skeleton = nodes[0];
 }
 
 void SingleImagePalm::visualize_bfs()
@@ -911,7 +994,7 @@ void SingleImagePalm::visualize_king()
     }
 }
 
-void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, bool show_edge, QColor color)
+void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, bool show_edge, QColor node_color, QColor edge_color)
 {
     if(!root)
         return;
@@ -934,7 +1017,7 @@ void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, 
                 BDLSkeletonNode *child = node->_children[i];
                 int x2 = child->_sx;
                 int y2 = child->_sz;
-                drawLine(x1, y1, x2, y2, color);
+                drawLine(x1, y1, x2, y2, edge_color);
 
                 Queue.push(child);
             }
@@ -953,7 +1036,7 @@ void SingleImagePalm::visualize_skeleton(BDLSkeletonNode *root, bool show_node, 
 
             int x1 = node->_sx;
             int y1 = node->_sz;
-            airbrush(x1, y1);
+            airbrush(x1, y1, 20, 20, node_color);
 
             for(unsigned int i=0; i<node->_children.size(); i++)
                 Queue.push(node->_children[i]);
