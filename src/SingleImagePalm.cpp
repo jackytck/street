@@ -67,11 +67,11 @@ SingleImagePalm::~SingleImagePalm()
         }
         //visualize_bfs();
         //visualize_bin();
-        visualize_kingdom();
         //visualize_king();
         //visualize_edge();
         //visualize_linesweep();
         //visualize_branch_search_limit();
+        visualize_kingdom();
         visualize_skeleton(_raw_skeleton, true, true);
 
         if(!_debug_img.isNull())
@@ -100,10 +100,6 @@ void SingleImagePalm::grow()
         if(findRoot())
         {
             //does not work
-            bfs();
-            assignBin();
-            inferKingdom();
-            //inferKing();
             //inferRawSkeleton();
             //extractMainBranch();
 
@@ -111,6 +107,10 @@ void SingleImagePalm::grow()
             produceLineEdge();
             inferBestTerminalNode();
             extractMainBranch2();
+            bfs();
+            assignBin();
+            inferKingdom();
+            inferKing();
         }
     }
 }
@@ -206,7 +206,7 @@ void SingleImagePalm::setupChildren()
 
 void SingleImagePalm::bfs()
 {
-    printf("bfs-ing...\n");
+    printf("bfs()...\n");
     std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
     std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
 
@@ -214,7 +214,7 @@ void SingleImagePalm::bfs()
     float max_dist = -1.0f;
 
     std::queue <ImageNode> Queue;
-    ImageNode root(_root.x(), _root.y());
+    ImageNode root(_first_branching_node.x(), _first_branching_node.y());
     Queue.push(root);
     while(!Queue.empty())
     {
@@ -259,6 +259,7 @@ void SingleImagePalm::bfs()
 
 void SingleImagePalm::assignBin(int divide)
 {
+    printf("assignBin()...\n");
     if(_nodes.empty() || _max_dist <= 0.0f)
         return;
 
@@ -331,7 +332,7 @@ void SingleImagePalm::floodFillAt(int x, int y, int label)
 
 void SingleImagePalm::inferKingdom()
 {
-    printf("infering kingdom...\n");
+    printf("inferKingdom()...\n");
     if(_max_bin < 0)
         return;
 
@@ -366,6 +367,7 @@ void SingleImagePalm::inferKingdom()
 
 void SingleImagePalm::inferKing()
 {
+    printf("inferKing()...\n");
     if(_max_kingdom <= 0)
         return;
     _kings = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
