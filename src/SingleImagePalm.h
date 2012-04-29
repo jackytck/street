@@ -230,6 +230,11 @@ class SingleImagePalm
          */
         void visualize_edge();
 
+        /*
+         * visualize search limits for branching node
+         */
+        void visualize_branch_search_limit();
+
     private:
         bool _verbose;
         bool _data_valid;
@@ -252,6 +257,8 @@ class SingleImagePalm
         long long _max_convolute_score;
         std::vector <osg::Vec4> _edges;
         QImage _edge_map;//the edge map drawn from results of LSD
+        int _lower_foliage_y;
+        int _higher_foliage_y;
 };
 
 #endif

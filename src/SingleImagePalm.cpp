@@ -38,6 +38,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _data_valid = true;
 
     //_img.save(QString("/tmp/test_tiff.png"), "PNG", 80);test if the qt plugin works
+
+    //some initial values
     _debug_img = QImage(iw, ih, QImage::Format_ARGB32);
     _debug_img.fill(0);
     _edge_map = QImage(iw, ih, QImage::Format_ARGB32);
@@ -48,6 +50,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _max_kingdom = -1;
     _raw_skeleton = NULL;
     _skeleton = NULL;
+    _lower_foliage_y = -1;
+    _higher_foliage_y = -1;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -68,6 +72,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_skeleton(_skeleton, true, true, Qt::black);
         //visualize_edge();
         visualize_linesweep();
+        visualize_branch_search_limit();
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -569,6 +574,7 @@ void SingleImagePalm::lineSweep()
     std::vector <float> xs;
     float std = -1.0f;
 
+    //1. go from root to top
     while(level >= 0 && query >= 0)
     {
         int left = query;
@@ -583,9 +589,10 @@ void SingleImagePalm::lineSweep()
 
         int mid = (left + right) / 2;
         int diff = abs(mid - query);
-        printf("%d  sd(%f)\n", abs(mid-query), 1.5*std);
+        //printf("%d  sd(%f)\n", abs(mid-query), 1.5*std);
 
-        if(xs.size() > 500 && std > 0.0f && diff > 10 && diff > 1.0f * std)//hard-code: enforce at least 300 records
+        //2. infer the next best position, resort to original position if deviates too much
+        if(xs.size() > 500 && std > 0.0f && diff > 10 && (diff > 20 || diff > 1.0f * std))//hard-code: enforce at least 500 records
             mid = query;
         else if(xs.size() > 500 && std == 0.0f)
         {
@@ -598,7 +605,32 @@ void SingleImagePalm::lineSweep()
         }
         _main_branch_locus.push_back(osg::Vec2(mid, level));
         xs.push_back(mid);
-        std = Transformer::standard_deviation(xs, 500);//only consider the 300-sd
+        std = Transformer::standard_deviation(xs, 500);//only consider the 500-sd
+
+        //3. find the first occurence of y, such that its (max_x - min_x) > 0.5 * _w, i.e. the lower horizontal bound of foliage
+        //_lower_foliage_y may become 0
+        if(_lower_foliage_y == -1)
+        {
+            int min_x = 0, max_x = _w-1;
+            while(!isInside(min_x, level))
+                min_x++;
+            while(!isInside(max_x, level))
+                max_x--;
+            if(max_x - min_x > 0.5 * _w)
+                _lower_foliage_y = level;
+        }
+
+        //4. find the highest point in foliage
+        if(_higher_foliage_y == -1)
+        {
+            for(int y=0; y<_h && _higher_foliage_y==-1; y++)
+            {
+                for(int x=0; x<_w && _higher_foliage_y==-1; x++)
+                    if(isInside(x, y))
+                        _higher_foliage_y = y;
+            }
+        }
+
         level--;
 
         if(isInside(mid, level-1))
@@ -797,20 +829,27 @@ void SingleImagePalm::inferBestTerminalNode()
     printf("inferBestTerminalNode()...\n");
     if(_main_branch_locus.empty())
         return;
+    int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
     _convolute_score.clear();
     _max_convolute_score = -1;
     for(unsigned int i=0; i<_main_branch_locus.size(); i++)
     {
         osg::Vec2 n = _main_branch_locus[i];
-        long long score_con = detectBranchingConvolution(n.x(), n.y());
-        long long score_blk = detectBranchingBlockFilling(n.x(), n.y());
-        long long score = score_con + 0.45 * pow(score_blk, 0.5);
-        if(_max_convolute_score == -1 || score > _max_convolute_score)
+        int nx = n.x(), ny = n.y();
+        if(ny < min_search_y)
+            _convolute_score.push_back(0);
+        else
         {
-            _max_convolute_score = score;
-            _first_branching_node = n;
+            long long score_con = detectBranchingConvolution(nx, ny);
+            long long score_blk = detectBranchingBlockFilling(nx, ny);
+            long long score = score_con + 0.45 * pow(score_blk, 0.5);
+            if(_max_convolute_score == -1 || score > _max_convolute_score)
+            {
+                _max_convolute_score = score;
+                _first_branching_node = n;
+            }
+            _convolute_score.push_back(score);
         }
-        _convolute_score.push_back(score);
     }
 
     //debug log
@@ -947,4 +986,13 @@ void SingleImagePalm::visualize_edge()
         osg::Vec4 v = _edges[i];
         drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 1);
     }
+}
+
+void SingleImagePalm::visualize_branch_search_limit()
+{
+    //int min_search_y = (_lower_foliage_y - _higher_foliage_y) * 0.618f + _higher_foliage_y;//golden ratio
+    int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
+    drawLine(0, _higher_foliage_y, _w-1, _higher_foliage_y, Qt::red);
+    drawLine(0, min_search_y, _w-1, min_search_y, Qt::red);
+    drawLine(0, _lower_foliage_y, _w-1, _lower_foliage_y, Qt::red);
 }
