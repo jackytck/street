@@ -4,6 +4,11 @@
 #include "Transformer.h"
 #include "LineSegmentDetector.h"
 
+const bool ImageNode::operator < (const ImageNode& node) const
+{
+    return !(_dist < node._dist);
+}
+
 SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
 {
     ISPLoader loader;
@@ -65,11 +70,12 @@ SingleImagePalm::~SingleImagePalm()
             //airbrush(_root.x(), _root.y());
             //printf("root(%d,%d)\n", int(_root.x()), int(_root.y()));
         }
-        //visualize_bfs();
+        //visualize_dijkstra();
         //visualize_bin();
         //visualize_king();
         //visualize_linesweep();
         //visualize_branch_search_limit();
+        //visualize_kingdom();
         visualize_kingdom(false);
         visualize_edge();
         visualize_skeleton(_raw_skeleton, true, true);
@@ -107,7 +113,7 @@ void SingleImagePalm::grow()
             produceLineEdge();
             inferBestTerminalNode();
             extractMainBranch2();
-            bfs();
+            dijkstra();
             assignBin();
             inferKingdom();
             inferKing();
@@ -205,22 +211,22 @@ void SingleImagePalm::setupChildren()
         }
 }
 
-void SingleImagePalm::bfs()
+void SingleImagePalm::dijkstra()
 {
-    printf("bfs...\n");
+    printf("dijkstra...\n");
     std::vector <std::vector <ImageNode> > nodes(_w, std::vector <ImageNode> (_h, ImageNode(0, 0)));
     std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
 
     const float diag_d = 1.4142135623730951f;
     float max_dist = -1.0f;
 
-    std::queue <ImageNode> Queue;
+    std::priority_queue<ImageNode> pq;
     ImageNode root(_first_branching_node.x(), _first_branching_node.y());
-    Queue.push(root);
-    while(!Queue.empty())
+    pq.push(root);
+    while(!pq.empty())
     {
-        ImageNode n = Queue.front();
-        Queue.pop();
+        ImageNode n = pq.top();
+        pq.pop();
         int nx = n._pos.x(), ny = n._pos.y();
         if(nx < 0 || nx >= _w || ny < 0 || ny >= _h || visited[nx][ny] || !isInside(nx, ny))
             continue;
@@ -234,18 +240,18 @@ void SingleImagePalm::bfs()
         if(max_dist == -1.0f || d > max_dist)
             max_dist = d;
         //upwards
-        Queue.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
-        Queue.push(ImageNode(nx, ny-1, nx, ny, d+1));
-        Queue.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny-1, nx, ny, d+1));
+        pq.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
 
         //sideways
-        Queue.push(ImageNode(nx-1, ny, nx, ny, d+1));
-        Queue.push(ImageNode(nx+1, ny, nx, ny, d+1));
+        pq.push(ImageNode(nx-1, ny, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny, nx, ny, d+1));
 
         //downwards
-        Queue.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
-        Queue.push(ImageNode(nx, ny+1, nx, ny, d+1));
-        Queue.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny+1, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
     }
 
     if(_max_dist == -1.0f && max_dist > 0)
@@ -981,8 +987,9 @@ void SingleImagePalm::dqMainbranchKingdom()
     }
 }
 
-void SingleImagePalm::visualize_bfs()
+void SingleImagePalm::visualize_dijkstra()
 {
+    printf("visualize_dijkstra...\n");
     if(_max_dist <= 0.0f)
         return;
 
@@ -997,6 +1004,7 @@ void SingleImagePalm::visualize_bfs()
 
 void SingleImagePalm::visualize_bin()
 {
+    printf("visualize_bin...\n");
     if(_max_bin <= 0)
         return;
 

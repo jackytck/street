@@ -21,6 +21,7 @@ class ImageNode
         ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false), _king(NULL)
         {
         }
+        const bool operator < (const ImageNode&) const;
         osg::Vec2 _pos;
         osg::Vec2 _prev;
         float _dist;
@@ -101,12 +102,12 @@ class SingleImagePalm
         void setupChildren();
 
         /*
-         * bfs from root and construct a bfs-tree
+         * dijkstra from the first branching node and construct a dijkstra-tree
          */
-        void bfs();
+        void dijkstra();
 
         /*
-         * after getting the bfs distance maps, segment it into different bins
+         * after getting the dijkstra distance maps, segment it into different bins
          * by packing ranges of dists in bins
          * divide: larger than zero, length of each bin is equal to _max_dist / division
          * note: _max_bin will be set
@@ -207,7 +208,7 @@ class SingleImagePalm
         /*
          * visualize bfs distance as scalar field
          */
-        void visualize_bfs();
+        void visualize_dijkstra();
 
         /*
          * visualize bins
