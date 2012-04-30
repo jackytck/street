@@ -66,8 +66,9 @@ class SingleImagePalm
          * x, y: coordinates, upper left is origin
          * w, h: width, height of ellipse
          * color: color of ellipse
+         * img: the image to draw
          */
-        void airbrush(int x, int y, int w = 10, int h = 10, QColor color = Qt::red);
+        void airbrush(int x, int y, int w = 10, int h = 10, QColor color = Qt::red, QImage *img = NULL);
 
         /*
          * for debugging and illustration purpose only
@@ -172,13 +173,22 @@ class SingleImagePalm
         long long detectBranchingBlockFilling(int x, int y);
 
         /*
-         * produce line edges by LSD
+         * given a point, find the closest point in segmentation to this point
+         * return (rx, ry)
+         */
+        void closestPoint(int x, int y, int& rx, int& ry);
+
+        /*
+         * produce edges + widths by LSD for computation and visualization
+         * also vote the _voting_space around each edge points
+         * note: must be called after dijkstra()
          */
         void produceLineEdge();
 
         /*
          * convolute with the edge map
          * higher return value indicates higher number of edges
+         * note: outdated
          */
         long long convoluteEdgeMap(int x, int y);
 
@@ -274,10 +284,14 @@ class SingleImagePalm
         std::vector <long long> _convolute_score;
         long long _max_convolute_score;
         std::vector <osg::Vec4> _edges;
+        std::vector <float> _edge_widths;
+        std::vector <bool> _edge_polarity;//true if (_edges[i].x(),_edges[i].y()) is positive
         QImage _edge_map;//the edge map drawn from results of LSD
+        QImage _edge_field;//the vector field constructd from edge map
         int _lower_foliage_y;
         int _higher_foliage_y;
         std::vector <bool> _kingdom_states;//false if it overlaps with main-branch or if it is consumed
+        std::vector <std::vector <double> > _voting_space;//for voting the potential from edge points
 };
 
 #endif

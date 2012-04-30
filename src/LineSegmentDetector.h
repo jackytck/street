@@ -27,6 +27,11 @@ class LineSegmentDetector
         std::vector <osg::Vec4> run();
 
         /*
+         * get back the width of each edge
+         */
+        std::vector <float> getWidths();
+
+        /*
          * official example test
          */
         void test();
@@ -42,6 +47,7 @@ class LineSegmentDetector
         bool _valid;
         int _w;
         int _h;
+        std::vector <float> _width;
 };
 
 #endif

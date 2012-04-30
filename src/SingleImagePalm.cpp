@@ -49,6 +49,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _debug_img.fill(0);
     _edge_map = QImage(iw, ih, QImage::Format_ARGB32);
     _edge_map.fill(0);
+    _edge_field = QImage(iw, ih, QImage::Format_ARGB32);
+    _edge_field.fill(0);
     _w = iw;
     _h = ih;
     _max_dist = -1.0f;
@@ -83,8 +85,10 @@ SingleImagePalm::~SingleImagePalm()
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
 
-        //if(!_edge_map.isNull())
-        //    _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
+        if(!_edge_map.isNull())
+            _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
+        //if(!_edge_field.isNull())
+        //    _edge_field.save(QString("/tmp/debug_edge_point.png"), "PNG", 70);
 
         printf("debug image is outputted at '%s'\n", path);
     }
@@ -110,22 +114,25 @@ void SingleImagePalm::grow()
             //extractMainBranch();
 
             lineSweep();
-            produceLineEdge();
             inferBestTerminalNode();
             extractMainBranch2();
             dijkstra();
             assignBin();
             inferKingdom();
-            inferKing();
+            //inferKing();
+            produceLineEdge();
             dqMainbranchKingdom();
         }
     }
 }
 
-void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color)
+void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color, QImage *img)
 {
+    QImage *board = &_debug_img;
+    if(img)
+        board = img;
     QPainter p;
-    p.begin(&_debug_img);
+    p.begin(board);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
     p.setBrush(QBrush(color));
@@ -824,19 +831,89 @@ long long SingleImagePalm::detectBranchingBlockFilling(int cx, int cy)
     return ret;
 }
 
-void SingleImagePalm::produceLineEdge()
+void SingleImagePalm::closestPoint(int x, int y, int& rx, int& ry)
 {
-    printf("produceLineEdge...\n");
-    LineSegmentDetector lsd = LineSegmentDetector(_img);
-    _edges = lsd.run();
+    //1. dijkstra from query until it find a point that is inside the segmentation
+    const float diag_d = 1.4142135623730951f;
+    std::vector <std::vector <bool> > visited(_w, std::vector <bool> (_h, false));
+    ImageNode root(x, y);
+    std::priority_queue<ImageNode> pq;
+    pq.push(root);
 
-    for(unsigned int i=0; i<_edges.size(); i++)
+    while(!pq.empty())
     {
-        osg::Vec4 v = _edges[i];
-        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::white, 1, &_edge_map);
+        ImageNode n = pq.top();
+        pq.pop();
+        int nx = n._pos.x(), ny = n._pos.y();
+        if(nx < 0 || nx >= _w || ny < 0 || ny >= _h || visited[nx][ny])
+            continue;
+
+        if(_nodes[nx][ny]._valid)
+        {
+            rx = nx;
+            ry = ny;
+            return;
+        }
+        visited[nx][ny] = true;
+        float d = n._dist;
+
+        //upwards
+        pq.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny-1, nx, ny, d+1));
+        pq.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
+
+        //sideways
+        pq.push(ImageNode(nx-1, ny, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny, nx, ny, d+1));
+
+        //downwards
+        pq.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny+1, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
     }
 }
 
+void SingleImagePalm::produceLineEdge()
+{
+    printf("produceLineEdge...\n");
+    if(_nodes.empty())
+        return;
+
+    //1. detect line segments
+    LineSegmentDetector lsd = LineSegmentDetector(_img);
+    _edges = lsd.run();
+    _edge_widths = lsd.getWidths();
+    _edge_polarity = std::vector <bool> (_edge_widths.size(), false);
+
+    ImageNode n1(0, 0), n2(0, 0);
+    for(unsigned int i=0; i<_edges.size(); i++)
+    {
+        osg::Vec4 v = _edges[i];
+        int x1 = round(v.x());
+        int y1 = round(v.y());
+        int x2 = round(v.z());
+        int y2 = round(v.w());
+
+        //2. initialize _edge_map by drawing each edge
+        drawLine(x1, y1, x2, y2, Qt::white, 1, &_edge_map);
+
+        //3. infer polarity of charge at each edge point
+        int cx1, cy1, cx2, cy2;
+        closestPoint(x1, y1, cx1, cy1);
+        closestPoint(x2, y2, cx2, cy2);
+        n1 = _nodes[cx1][cy1];
+        n2 = _nodes[cx2][cy2];
+        float d1 = n1._dist;
+        float d2 = n2._dist;
+        _edge_polarity[i] = d1 >= d2 ? false : true;
+
+        //3. visualize edges and edge points
+        airbrush(x1, y1, 1, 1, Qt::white, &_edge_field);
+        airbrush(x2, y2, 1, 1, Qt::white, &_edge_field);
+    }
+}
+
+//outdated
 long long SingleImagePalm::convoluteEdgeMap(int x, int y)
 {
     long long ret = 0;
@@ -1118,11 +1195,23 @@ void SingleImagePalm::visualize_linesweep()
 void SingleImagePalm::visualize_edge()
 {
     printf("visualize_edge...\n");
-    for(unsigned int i=0; i<_edges.size(); i++)
-    {
-        osg::Vec4 v = _edges[i];
-        drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 1);
-    }
+    if(_edges.size() == _edge_widths.size())
+        for(unsigned int i=0; i<_edges.size(); i++)
+        {
+            osg::Vec4 v = _edges[i];
+            drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, _edge_widths[i]);
+
+            if(_edge_polarity[i])
+            {
+                airbrush(v.x(), v.y(), 5, 5, Qt::red, &_edge_map);//red is positive
+                airbrush(v.z(), v.w(), 5, 5, Qt::green, &_edge_map);//green is negative
+            }
+            else
+            {
+                airbrush(v.x(), v.y(), 5, 5, Qt::green, &_edge_map);//green is negative
+                airbrush(v.z(), v.w(), 5, 5, Qt::red, &_edge_map);//red is positive
+            }
+        }
 }
 
 void SingleImagePalm::visualize_branch_search_limit()

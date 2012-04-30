@@ -33,6 +33,7 @@ std::vector <osg::Vec4> LineSegmentDetector::run()
       printf("LineSegmentDetector::run(): error: not enough memory\n");
       return ret;
     }
+    _width.clear();
 
     //2. fill the double array from data in QImage
     for(x=0; x<_w; x++)
@@ -49,6 +50,7 @@ std::vector <osg::Vec4> LineSegmentDetector::run()
     for(i=0; i<n; i++)
     {
         osg::Vec4 v(out[7*i], out[7*i+1], out[7*i+2], out[7*i+3]);
+        _width.push_back(out[7*i+4]);
         ret.push_back(v);
     }
 
@@ -67,6 +69,11 @@ std::vector <osg::Vec4> LineSegmentDetector::run()
     free( (void *) out );
 
     return ret;
+}
+
+std::vector <float> LineSegmentDetector::getWidths()
+{
+    return _width;
 }
 
 int LineSegmentDetector::rgb2gray(int r, int g, int b)
