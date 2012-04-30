@@ -179,8 +179,15 @@ class SingleImagePalm
         void closestPoint(int x, int y, int& rx, int& ry);
 
         /*
+         * vote the voting space by the given charge
+         * (x,y): position of charge
+         * radius: the radius of effect of the charge
+         * positive: true if it is a positive charge
+         */
+        inline void voteSingleCharge(int x, int y, float radius, bool positive);
+
+        /*
          * produce edges + widths by LSD for computation and visualization
-         * also vote the _voting_space around each edge points
          * note: must be called after dijkstra()
          */
         void produceLineEdge();
@@ -253,13 +260,24 @@ class SingleImagePalm
 
         /*
          * visualize the edges by using LSD
+         * thin_edge: true if to draw a thin edge
          */
-        void visualize_edge();
+        void visualize_edge(bool thin_edge = false, QImage *img = NULL);
 
         /*
          * visualize search limits for branching node
          */
         void visualize_branch_search_limit();
+
+        /*
+         * visualize polarity
+         */
+        void visualize_polarity();
+
+        /*
+         * visualize the voting space
+         */
+        void visualize_voting_space();
 
     private:
         bool _verbose;
@@ -292,6 +310,8 @@ class SingleImagePalm
         int _higher_foliage_y;
         std::vector <bool> _kingdom_states;//false if it overlaps with main-branch or if it is consumed
         std::vector <std::vector <double> > _voting_space;//for voting the potential from edge points
+        double _min_potential;//global min of _voting_space
+        double _max_potential;//global max of _voting_space
 };
 
 #endif

@@ -60,6 +60,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _lower_foliage_y = -1;
     _higher_foliage_y = -1;
     _first_branching_node_idx = -1;
+    _min_potential = -1;
+    _max_potential = -1;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -81,6 +83,9 @@ SingleImagePalm::~SingleImagePalm()
         visualize_kingdom(false);
         visualize_edge();
         visualize_skeleton(_raw_skeleton, true, true);
+
+        visualize_voting_space();
+        visualize_edge(true, &_edge_map);
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
@@ -873,6 +878,26 @@ void SingleImagePalm::closestPoint(int x, int y, int& rx, int& ry)
     }
 }
 
+void SingleImagePalm::voteSingleCharge(int x, int y, float r, bool positive)
+{
+    int charge = positive ? 1 : -1;
+    for(int i=x-r; i<=x+r; i++)
+        for(int j=y-r; j<=y+r; j++)
+        {
+            if(i < 0 || i >= _w || j < 0 || j >= _h || !isInside(i, j))
+                continue;
+
+            float d = pow((i-x)*(i-x) + (j-y)*(j-y), 0.5);
+            if(d <= r)
+            {
+                float assign = charge;
+                if(d > 1)
+                    assign = charge / d;
+                _voting_space[i][j] += assign;
+            }
+        }
+}
+
 void SingleImagePalm::produceLineEdge()
 {
     printf("produceLineEdge...\n");
@@ -884,6 +909,7 @@ void SingleImagePalm::produceLineEdge()
     _edges = lsd.run();
     _edge_widths = lsd.getWidths();
     _edge_polarity = std::vector <bool> (_edge_widths.size(), false);
+    _voting_space = std::vector <std::vector <double> > (_w, std::vector <double> (_h, 0.0));
 
     ImageNode n1(0, 0), n2(0, 0);
     for(unsigned int i=0; i<_edges.size(); i++)
@@ -895,7 +921,7 @@ void SingleImagePalm::produceLineEdge()
         int y2 = round(v.w());
 
         //2. initialize _edge_map by drawing each edge
-        drawLine(x1, y1, x2, y2, Qt::white, 1, &_edge_map);
+        //drawLine(x1, y1, x2, y2, Qt::white, _edge_widths[i], &_edge_map);
 
         //3. infer polarity of charge at each edge point
         int cx1, cy1, cx2, cy2;
@@ -907,10 +933,26 @@ void SingleImagePalm::produceLineEdge()
         float d2 = n2._dist;
         _edge_polarity[i] = d1 >= d2 ? false : true;
 
-        //3. visualize edges and edge points
-        airbrush(x1, y1, 1, 1, Qt::white, &_edge_field);
-        airbrush(x2, y2, 1, 1, Qt::white, &_edge_field);
+        //4. vote charge
+        float ed = pow((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2), 0.5) / 0.5f;
+        voteSingleCharge(x1, y1, std::min(ed, 10 * _edge_widths[i]), _edge_polarity[i]);
+        voteSingleCharge(x2, y2, std::min(ed, 10 * _edge_widths[i]), !_edge_polarity[i]);
+
+        //5. visualize edges and edge points
+        //airbrush(x1, y1, 1, 1, Qt::white, &_edge_field);
+        //airbrush(x2, y2, 1, 1, Qt::white, &_edge_field);
     }
+
+    //6. set global max, min of potential
+    for(int i=0; i<_w; i++)
+        for(int j=0; j<_h; j++)
+        {
+            double p = _voting_space[i][j];
+            if(_min_potential == -1 || p < _min_potential)
+                _min_potential = p;
+            if(_max_convolute_score == -1 || p > _max_potential)
+                _max_potential = p;
+        }
 }
 
 //outdated
@@ -1192,15 +1234,40 @@ void SingleImagePalm::visualize_linesweep()
     }
 }
 
-void SingleImagePalm::visualize_edge()
+void SingleImagePalm::visualize_edge(bool thin_edge, QImage *img)
 {
     printf("visualize_edge...\n");
+    QImage *board = &_debug_img;
+    if(img)
+        board = img;
     if(_edges.size() == _edge_widths.size())
         for(unsigned int i=0; i<_edges.size(); i++)
         {
             osg::Vec4 v = _edges[i];
-            drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, _edge_widths[i]);
+            if(thin_edge)
+                drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, 1, board);
+            else
+                drawLine(v.x(), v.y(), v.z(), v.w(), Qt::black, _edge_widths[i], board);
+        }
+}
 
+void SingleImagePalm::visualize_branch_search_limit()
+{
+    printf("visualize_branch_search_limit...\n");
+    //int min_search_y = (_lower_foliage_y - _higher_foliage_y) * 0.618f + _higher_foliage_y;//golden ratio
+    int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
+    drawLine(0, _higher_foliage_y, _w-1, _higher_foliage_y, Qt::red);
+    drawLine(0, min_search_y, _w-1, min_search_y, Qt::red);
+    drawLine(0, _lower_foliage_y, _w-1, _lower_foliage_y, Qt::red);
+}
+
+void SingleImagePalm::visualize_polarity()
+{
+    printf("visualize_polarity...\n");
+    if(_edges.size() == _edge_widths.size())
+        for(unsigned int i=0; i<_edges.size(); i++)
+        {
+            osg::Vec4 v = _edges[i];
             if(_edge_polarity[i])
             {
                 airbrush(v.x(), v.y(), 5, 5, Qt::red, &_edge_map);//red is positive
@@ -1214,12 +1281,20 @@ void SingleImagePalm::visualize_edge()
         }
 }
 
-void SingleImagePalm::visualize_branch_search_limit()
+void SingleImagePalm::visualize_voting_space()
 {
-    printf("visualize_branch_search_limit...\n");
-    //int min_search_y = (_lower_foliage_y - _higher_foliage_y) * 0.618f + _higher_foliage_y;//golden ratio
-    int min_search_y = (_lower_foliage_y + _higher_foliage_y) / 2;
-    drawLine(0, _higher_foliage_y, _w-1, _higher_foliage_y, Qt::red);
-    drawLine(0, min_search_y, _w-1, min_search_y, Qt::red);
-    drawLine(0, _lower_foliage_y, _w-1, _lower_foliage_y, Qt::red);
+    printf("visualize_voting_space...\n");
+    double range = _max_potential - _min_potential;
+    if(_voting_space.empty() || range == 0.0f)
+        return;
+
+    //printf("_max_potential(%lf) _min_potential(%lf)\n", _max_potential, _min_potential);
+    for(int i=0; i<_w; i++)
+        for(int j=0; j<_h; j++)
+            //if(isInside(i, j) && _voting_space[i][j] != 0)
+            if(isInside(i, j))
+            {
+                airbrush(i, j, 1, 1, mapColor((_voting_space[i][j]-_min_potential) / range), &_edge_map);
+                //printf("%lf\n", (_voting_space[i][j]-_min_potential) / range);
+            }
 }
