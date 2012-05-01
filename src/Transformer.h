@@ -294,6 +294,10 @@ class Transformer
          */
         static std::vector <osg::Vec3> interpolate_bezier_3(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c, osg::Vec3 d, int time = 11);
 
+        /* interpolate the cubic bezier curve on 2d plane
+         */
+        static std::vector <osg::Vec2> interpolate_bezier_3_2d(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d, int time = 11);
+
         /* given 3 points a,b,c, construct d,e such that abde is a rectangle with width w lying on the plane
          * defined by a,b,c and {c,d,e} are on the same side (with respect to a,b)
          */
