@@ -15,10 +15,10 @@
 class ImageNode
 {
     public:
-        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false), _considered(false), _king(NULL)
+        ImageNode(int x, int y): _pos(x, y), _prev(-1, -1), _dist(0.0f), _valid(false), _considered(false), _king(NULL), _kingdom(-1)
         {
         }
-        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false), _king(NULL)
+        ImageNode(int x, int y, int px, int py, float d): _pos(x, y), _prev(px, py), _dist(d), _valid(false), _considered(false), _king(NULL), _kingdom(-1)
         {
         }
         const bool operator < (const ImageNode&) const;
@@ -28,8 +28,8 @@ class ImageNode
         bool _valid;//true if is inside segmentation
         bool _considered;//for kingdom selection
         int _king;//king id stored in SingleImagePalm
-        int _bin;
         int _kingdom;
+        int _bin;
         std::vector <ImageNode *> _children;//pointers static references
 };
 
@@ -125,9 +125,10 @@ class SingleImagePalm
         /*
          * flood fill region
          * for inferring the connected component(s) in each bin
+         * strong: true if strong connection is desired
          * return the populaton of this kingdom
          */
-        long long floodFillAt(int x, int y, int label);
+        long long floodFillAt(int x, int y, int label, bool strong = false);
 
         /*
          * infer kingdom by finding the connected component(s) in each bin
@@ -137,7 +138,12 @@ class SingleImagePalm
         /*
          * infer averaged skeleton node(king) of each kingdom
          */
-        void inferKing();
+        void inferKingAvg();
+
+        /*
+         * infer king who has the highest potential
+         */
+        void inferKingPotential();
 
         /*
          * infer skeleton from kingdom and king
@@ -214,9 +220,38 @@ class SingleImagePalm
         void extractMainBranch2();
 
         /*
-         * dis-qualify all the kingdoms that overlap with the main branch
+         * disqualify all the kingdoms that overlap with the main branch
          */
         void dqMainbranchKingdom();
+
+        /*
+         * compute the socre of this path
+         * a: first control point
+         * b: second control point
+         * c: third control point
+         * d: forth control point
+         */
+        float computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d);
+
+        /*
+         * return a list of kingdoms that overlap with the dijkstra's path
+         * transversed from the query point to the root
+         * return the sorted kingdom id in increasing order
+         */
+        std::vector <int> overlappedKingdom(osg::Vec2 query);
+
+        /*
+         * determine if the query point is properly oriented
+         * with respect to the first branching point
+         */
+        bool isWellOriented(osg::Vec2 leaf, osg::Vec2 query);
+
+        /*
+         * extract a single sub-branch by letting the 4th control point be living in the farest kingdom
+         * and exhaustively find out the other 2 control point
+         * return false if no branch is extracted
+         */
+        bool extractSingleSubBranch();
 
         /*
          * ### Debug Visualizations ###
@@ -298,6 +333,7 @@ class SingleImagePalm
         std::vector <long long> _population;//i-th kingdom has population _population[i]
         BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
+        BDLSkeletonNode *_branching;//points to the first branching node
         std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
         std::vector <long long> _convolute_score;
         long long _max_convolute_score;
@@ -308,10 +344,12 @@ class SingleImagePalm
         QImage _edge_field;//the vector field constructd from edge map
         int _lower_foliage_y;
         int _higher_foliage_y;
-        std::vector <bool> _kingdom_states;//false if it overlaps with main-branch or if it is consumed
+        std::vector <bool> _kingdom_states;//false if it overlaps with main-branch or if it is consumed, size = _max_kingdom + 1
+        int _root_kingdom_id;//kingdom id of first branching node
         std::vector <std::vector <double> > _voting_space;//for voting the potential from edge points
         double _min_potential;//global min of _voting_space
         double _max_potential;//global max of _voting_space
+        std::vector <std::vector <osg::Vec2> > _citizens;//_citizens[i] contains citizens of i-th kingdom
 };
 
 #endif

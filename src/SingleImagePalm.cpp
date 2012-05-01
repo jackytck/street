@@ -1,6 +1,7 @@
 #include "SingleImagePalm.h"
 #include "ISPLoader.h"
 #include <queue>
+#include <set>
 #include "Transformer.h"
 #include "LineSegmentDetector.h"
 
@@ -79,19 +80,20 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_king();
         //visualize_linesweep();
         //visualize_branch_search_limit();
-        //visualize_kingdom();
-        visualize_kingdom(false);
-        visualize_edge();
-        visualize_skeleton(_raw_skeleton, true, true);
+        visualize_kingdom();
+        while(extractSingleSubBranch()) ;
+        //visualize_kingdom(false);
+        visualize_edge(true);
+        //visualize_skeleton(_skeleton, true, true);
 
-        visualize_voting_space();
-        visualize_edge(true, &_edge_map);
+        //visualize_voting_space();
+        //visualize_edge(true, &_edge_map);
 
         if(!_debug_img.isNull())
             _debug_img.save(QString(path), "PNG", 70);
 
-        if(!_edge_map.isNull())
-            _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
+        //if(!_edge_map.isNull())
+        //    _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
         //if(!_edge_field.isNull())
         //    _edge_field.save(QString("/tmp/debug_edge_point.png"), "PNG", 70);
 
@@ -124,9 +126,11 @@ void SingleImagePalm::grow()
             dijkstra();
             assignBin();
             inferKingdom();
-            //inferKing();
             produceLineEdge();
+            //inferKingAvg();
+            inferKingPotential();
             dqMainbranchKingdom();
+
         }
     }
 }
@@ -310,7 +314,7 @@ ImageNode * SingleImagePalm::isGoodNeighbor(int x, int y, int bin)
     return ret;
 }
 
-long long SingleImagePalm::floodFillAt(int x, int y, int label)
+long long SingleImagePalm::floodFillAt(int x, int y, int label, bool strong)
 {
     long long ret = 0;
     if(x < 0 || x >= _w || y < 0 || y >= _h)
@@ -343,20 +347,23 @@ long long SingleImagePalm::floodFillAt(int x, int y, int label)
         h = isGoodNeighbor(nx-1, ny-1, ref_bin);//up-left
         if(a)
             Queue.push(a);
-        if(b)
-            Queue.push(b);
         if(c)
             Queue.push(c);
-        if(d)
-            Queue.push(d);
         if(e)
             Queue.push(e);
-        if(f)
-            Queue.push(f);
         if(g)
             Queue.push(g);
-        if(h)
-            Queue.push(h);
+        if(strong)
+        {
+            if(b)
+                Queue.push(b);
+            if(d)
+                Queue.push(d);
+            if(f)
+                Queue.push(f);
+            if(h)
+                Queue.push(h);
+        }
     }
     //printf("kingdom(%d) population(%lld)\n", label, ret);
 
@@ -397,11 +404,21 @@ void SingleImagePalm::inferKingdom()
             _population.push_back(population);
         }
     }
+
+    //3. put ImageNode into {kingdom, osg::Vec2} dict
+    _citizens = std::vector <std::vector <osg::Vec2> > (_max_kingdom+1, std::vector <osg::Vec2>());
+    for(int y=_h-1; y>=0; y--)
+		for(int x=0; x<_w; x++)
+		{
+            ImageNode n = _nodes[x][y];
+            if(n._valid && n._kingdom >=0 && n._kingdom <= _max_kingdom)
+                _citizens[n._kingdom].push_back(osg::Vec2(x, y));
+        }
 }
 
-void SingleImagePalm::inferKing()
+void SingleImagePalm::inferKingAvg()
 {
-    printf("inferKing...\n");
+    printf("inferKingAvg...\n");
     if(_max_kingdom <= 0)
         return;
     _kings = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
@@ -433,6 +450,30 @@ void SingleImagePalm::inferKing()
             int ax = int(x / kingdom.size());
             int ay = int(y / kingdom.size());
             _kings[i] = osg::Vec2(ax, ay);
+        }
+    }
+}
+
+void SingleImagePalm::inferKingPotential()
+{
+    printf("inferKingPotential...\n");
+    if(_citizens.empty() || _max_kingdom <= 0)
+        return;
+    _kings = std::vector <osg::Vec2>(_max_kingdom+1, osg::Vec2(-1, -1));
+    for(int i=0; i<=_max_kingdom; i++)
+    {
+        std::vector <osg::Vec2> cs = _citizens[i];
+        double max_p = -1;
+        for(unsigned int j=0; j<cs.size(); j++)
+        {
+            int x = cs[j].x();
+            int y = cs[j].y();
+            double p = _voting_space[x][y];
+            if(max_p == -1 || p > max_p)
+            {
+                max_p = p;
+                _kings[i] = cs[j];
+            }
         }
     }
 }
@@ -1080,7 +1121,10 @@ void SingleImagePalm::extractMainBranch2()
     }
 
     if(!nodes.empty())
-        _raw_skeleton = nodes[0];
+    {
+        _skeleton = nodes[0];
+        _branching = nodes[nodes.size()-1];
+    }
 }
 
 void SingleImagePalm::dqMainbranchKingdom()
@@ -1098,12 +1142,229 @@ void SingleImagePalm::dqMainbranchKingdom()
         int ny = int(cur.y());
 
         //2. dq the respective kingdom
-        _kingdom_states[_nodes[nx][ny]._kingdom] = false;
+        int kid = _nodes[nx][ny]._kingdom;
+        _kingdom_states[kid] = false;
+        _root_kingdom_id = kid;
 
         //airbrush(nx, ny, 5, 5, Qt::yellow);
         osg::Vec2 par = _nodes[nx][ny]._prev;
         cur = par;
     }
+}
+
+std::vector <int> SingleImagePalm::overlappedKingdom(osg::Vec2 query)
+{
+    std::set <int> travelled;
+
+    //1. transverse from query back to root
+    osg::Vec2 cur = query;
+    while(int(cur.x()) != -1 && int(cur.y()) != -1)
+    {
+        int nx = int(round(cur.x()));
+        int ny = int(round(cur.y()));
+
+        travelled.insert(_nodes[nx][ny]._kingdom);
+
+        airbrush(nx, ny, 2, 2, Qt::yellow);
+        osg::Vec2 par = _nodes[nx][ny]._prev;
+        cur = par;
+    }
+
+    std::vector <int> ret;
+    std::set <int>::iterator it;
+    for(it=travelled.begin(); it!=travelled.end(); it++)
+        if(*it != -1)
+            ret.push_back(*it);
+    sort(ret.begin(), ret.end());
+
+    return ret;
+}
+
+bool SingleImagePalm::isWellOriented(osg::Vec2 leaf, osg::Vec2 query)
+{
+    bool ret = false;
+    float det = Transformer::orient(leaf, _first_branching_node, query);
+    if(leaf.x() <= _root.x())
+    {
+        if(det >= 0)
+            ret = true;
+    }
+    else
+    {
+        if(det <= 0)
+            ret = true;
+    }
+    return !ret;//because y-axis is pointing downwards
+}
+
+float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d)
+{
+    float ret = 0.0f;
+    //1. interpolate the control points
+    std::vector <osg::Vec2> pts = Transformer::interpolate_bezier_3_2d(a, b, c, d, 1000);
+    for(unsigned int i=0; i<pts.size(); i++)
+    {
+        osg::Vec2 p = pts[i];
+        if(p.x() < 0 || p.x() >= _w || p.y() < 0 || p.y() >= _h)
+            continue;
+        int x = p.x();
+        int y = p.y();
+
+        //2. sum up the potential
+        ret += _voting_space[x][y];
+
+        //3. penalize any point that is not inside the segmentation
+        if(!isInside(x, y))
+            ret -= 10;
+    }
+    return ret;
+}
+
+bool SingleImagePalm::extractSingleSubBranch()
+{
+    printf("extractSingleSubBranch...\n");
+    bool ret = false;
+    if(_max_kingdom <= 0 || _kingdom_states.empty() || !_branching)
+        return ret;
+
+    //1. pick the un-consumed kingdom which has the highest kingdom id
+    int picked = -1;
+    for(int i=_kingdom_states.size()-1; i>=0; i--)
+        if(_kingdom_states[i])
+        {
+            if(_population[i] < 1000)//hard-code: ignore all kindoms that have population less than 1000
+            {
+                _kingdom_states[i] = false;
+                continue;
+            }
+            picked = i;
+            break;
+        }
+    if(picked == -1)
+        return ret;
+
+    //2. pick the best 4-th control point
+    osg::Vec2 four = _kings[picked];
+    airbrush(four.x(), four.y(), 20, 20, Qt::magenta);
+
+    //3. get a list of kingdom from 1-st and 4-th control points
+    std::vector <int> first_round_can = overlappedKingdom(four);
+    if(first_round_can.empty())
+        return ret;
+
+    std::vector <int> second_round_can;
+    for(int i=0; i<int(first_round_can.size()); i++)
+    {
+        int kid = first_round_can[i];
+
+        //exclude the two end-points
+        if(kid == picked || kid == _root_kingdom_id)
+            continue;
+
+        //exclude the consumed kingdom
+        //if(!_kingdom_states[kid])
+        //    continue;
+
+        osg::Vec2 king = _kings[kid];
+
+        //exclude any improper oriented king
+        if(!isWellOriented(four, king))
+            continue;
+
+        second_round_can.push_back(kid);
+        airbrush(king.x(), king.y(), 20, 20, Qt::red);
+    }
+
+    //4. if less than 2 candidates in the second round, just infer a straight line
+    osg::Vec2 second, third;
+    if(second_round_can.empty())
+    {
+        printf("no candidate\n");
+        second = (_first_branching_node + four) * 0.5;
+        third = second;
+        second = (second + _first_branching_node) * 0.5;
+        third = (third + four) * 0.5;
+    }
+    else if(second_round_can.size() == 1)
+    {
+        printf("only one candidate\n");
+        second = _kings[second_round_can[0]];
+        third = second;
+    }
+    else
+    {
+        //5. else pick the 2 that gives the maximum score
+        float max_score = -1.0f;
+        int best_kid_2 = -1;
+        int best_kid_3 = -1;
+        for(unsigned int i=0; i<second_round_can.size(); i++)
+            for(unsigned int j=i+1; j<second_round_can.size(); j++)
+            {
+                osg::Vec2 a = _kings[second_round_can[i]];
+                osg::Vec2 b = _kings[second_round_can[j]];
+
+                float score = computePathScore(_first_branching_node, a, b, four);
+                if(max_score == -1.0f || score > max_score)
+                {
+                    max_score = score;
+                    best_kid_2 = second_round_can[i];
+                    best_kid_3 = second_round_can[j];
+                }
+                printf("score(%f)\n", score);
+            }
+
+        //airbrush(_kings[best_kid_2].x(), _kings[best_kid_2].y(), 20, 20, Qt::black);
+        //airbrush(_kings[best_kid_3].x(), _kings[best_kid_3].y(), 20, 20, Qt::black);
+
+        second = _kings[best_kid_2];
+        third = _kings[best_kid_3];
+    }
+
+    //6. add to main skeleton
+    if(false)
+    {
+        std::vector <BDLSkeletonNode *> nodes;
+        std::vector <osg::Vec2> edges;
+        std::vector <osg::Vec2> new_nodes;
+        new_nodes.push_back(second);
+        new_nodes.push_back(third);
+        new_nodes.push_back(four);
+        for(unsigned int i=0; i<new_nodes.size(); i++)
+        {
+            //in image space, i.e. origin is left-top corner
+            BDLSkeletonNode *node = new BDLSkeletonNode;
+            node->_sx = new_nodes[i].x();
+            node->_sy = 0.0f;
+            node->_sz = new_nodes[i].y();
+
+            nodes.push_back(node);
+            if(i != new_nodes.size()-1)
+                edges.push_back(osg::Vec2(i, i+1));
+        }
+
+        for(unsigned int i=0; i<edges.size(); i++)
+        {
+            osg::Vec2 e = edges[i];
+            int parent = int(e.x());
+            int child = int(e.y());
+
+            if(nodes[parent] && nodes[child])
+            {
+                nodes[parent]->_children.push_back(nodes[child]);
+                nodes[child]->_prev = nodes[parent];
+            }
+        }
+
+        _branching->_children.push_back(nodes[0]);
+        nodes[0]->_prev = _branching;
+    }
+
+    //7. consumed the kingdoms of this sub-branch
+    for(unsigned int i=0; i<first_round_can.size(); i++)
+        _kingdom_states[first_round_can[i]] = false;
+
+    ret = true;
+    return ret;
 }
 
 void SingleImagePalm::visualize_dijkstra()
@@ -1140,7 +1401,7 @@ void SingleImagePalm::visualize_bin()
 void SingleImagePalm::visualize_kingdom(bool show_all)
 {
     printf("visualize_kingdom...\n");
-    if(_max_kingdom <= 0)
+    if(_max_kingdom <= 0 || _kingdom_states.empty())
         return;
 
     float mk = float(_max_kingdom);
