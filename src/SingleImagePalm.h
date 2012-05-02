@@ -230,8 +230,9 @@ class SingleImagePalm
          * b: second control point
          * c: third control point
          * d: forth control point
+         * k: number of interpolation
          */
-        float computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d);
+        float computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d, int k = 1000);
 
         /*
          * return a list of kingdoms that overlap with the dijkstra's path
@@ -250,16 +251,18 @@ class SingleImagePalm
 
         /*
          * determine if the query point is properly oriented
-         * with respect to the first branching point
+         * with respect to the center, usually be to the first branching point
+         * center: the other end-point of the line
          */
-        bool isWellOriented(osg::Vec2 leaf, osg::Vec2 query);
+        bool isWellOriented(osg::Vec2 leaf, osg::Vec2 query, osg::Vec2 center);
 
         /*
          * return a circular zone of interest around the central pixel
          * center: center of the zone
          * radius: radius of the zone
+         * step: separation between two points in zone
          */
-        inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius);
+        inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius, int step = 5);
 
         /*
          * extract a single sub-branch by letting the 4th control point be living in the farest kingdom

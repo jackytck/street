@@ -84,7 +84,7 @@ SingleImagePalm::~SingleImagePalm()
         while(extractSingleSubBranch()) ;
         visualize_kingdom(false);
         visualize_edge(true);
-        //visualize_skeleton(_skeleton, true, true);
+        visualize_skeleton(_skeleton, true, true);
 
         //visualize_voting_space();
         //visualize_edge(true, &_edge_map);
@@ -1227,35 +1227,35 @@ std::vector <osg::Vec2> SingleImagePalm::getRetracement(osg::Vec2 leaf, std::vec
             }
         }
 
-        airbrush(nx2, ny2, 2, 2, Qt::yellow);
+        //airbrush(nx2, ny2, 2, 2, Qt::yellow);
         cur = _nodes[nx2][ny2]._prev;
     }
 
     return ret;
 }
 
-bool SingleImagePalm::isWellOriented(osg::Vec2 leaf, osg::Vec2 query)
+bool SingleImagePalm::isWellOriented(osg::Vec2 leaf, osg::Vec2 query, osg::Vec2 center)
 {
     bool ret = false;
-    float det = Transformer::orient(leaf, _first_branching_node, query);
+    float det = Transformer::orient(leaf, center, query);
     if(leaf.x() <= _root.x())
     {
-        if(det >= 0)
+        if(det > 0)
             ret = true;
     }
     else
     {
-        if(det <= 0)
+        if(det < 0)
             ret = true;
     }
     return !ret;//because y-axis is pointing downwards
 }
 
-float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d)
+float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2 d, int k)
 {
     float ret = 0.0f;
     //1. interpolate the control points
-    std::vector <osg::Vec2> pts = Transformer::interpolate_bezier_3_2d(a, b, c, d, 1000);//hard-code: number of interpolation
+    std::vector <osg::Vec2> pts = Transformer::interpolate_bezier_3_2d(a, b, c, d, k);
     for(unsigned int i=0; i<pts.size(); i++)
     {
         osg::Vec2 p = pts[i];
@@ -1274,14 +1274,17 @@ float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, o
     return ret;
 }
 
-std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r)
+std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r, int step)
 {
     std::vector <osg::Vec2> ret;
+    if(step <= 0)
+        return ret;
     int x = center.x(), y = center.y();
-    for(int i=x-r; i<=x+r; i++)
-        for(int j=y-r; j<=y+r; j++)
+    for(int i=x-r; i<=x+r; i+=step)
+        for(int j=y-r; j<=y+r; j+=step)
         {
-            if(i < 0 || i >= _w || j < 0 || j >= _h || !isInside(i, j))
+            //if(i < 0 || i >= _w || j < 0 || j >= _h || !isInside(i, j))//more restricted, must be inside segmentation
+            if(i < 0 || i >= _w || j < 0 || j >= _h)
                 continue;
 
             float d = pow((i-x)*(i-x) + (j-y)*(j-y), 0.5);
@@ -1331,87 +1334,47 @@ bool SingleImagePalm::extractSingleSubBranch()
     if(retracements.empty())
         return ret;
     osg::Vec2 second = retracements[0], third = retracements[1];
+
+    //5. wiggle the two middle points to get the best path
+    int inter = (four - _first_branching_node).length() / 2;//hard-code: number of interpolation of bezier curve
+    std::vector <osg::Vec2> zone2 = circularZone(second, 50);//hard-code: radius and step of wiggling zone
+    std::vector <osg::Vec2> zone3 = circularZone(third, 50);//hard-code: radius and step of wiggling zone
+    float max_score = -1.0f;
+    long long cnt = 0;
+    for(unsigned int i=0; i<zone2.size(); i++)
+        for(unsigned int j=0; j<zone3.size(); j++)
+        {
+            osg::Vec2 w2 = zone2[i];
+            osg::Vec2 w3 = zone3[j];
+
+            //check orientations
+            if(!isWellOriented(w3, w2, _first_branching_node))
+                continue;
+            if(!isWellOriented(four, w3, w2))
+                continue;
+
+            cnt++;
+            float score = computePathScore(_first_branching_node, w2, w3, four, inter);
+            if(max_score == -1.0f || score > max_score)
+            {
+                max_score = score;
+                second = w2;
+                third = w3;
+            }
+
+            //debug
+            //airbrush(w2.x(), w2.y(), 1, 1, Qt::white);
+            //airbrush(w3.x(), w3.y(), 1, 1, Qt::white);
+            //printf("score(%f)\n", score);
+        }
+
+    //printf("ops(%lld)\n", cnt * inter);
+    //printf("max score(%f)\n", max_score);
     airbrush(second.x(), second.y(), 20, 20, Qt::red);
     airbrush(third.x(), third.y(), 20, 20, Qt::red);
 
-    //5. wiggle the two middle points to get the best path
-    std::vector <osg::Vec2> zone2 = circularZone(second, 50);//hard-code: radius of wiggling zone
-    std::vector <osg::Vec2> zone3 = circularZone(third, 50);//hard-code: radius of wiggling zone
-    for(unsigned int i=0; i<zone2.size(); i++)
-        airbrush(zone2[i].x(), zone2[i].y(), 1, 1, Qt::darkCyan);
-    for(unsigned int i=0; i<zone3.size(); i++)
-        airbrush(zone3[i].x(), zone3[i].y(), 1, 1, Qt::darkCyan);
-
-    //std::vector <int> second_round_can;
-    //for(int i=0; i<int(first_round_can.size()); i++)
-    //{
-    //    int kid = first_round_can[i];
-
-    //    //exclude the two end-points
-    //    if(kid == picked || kid == _root_kingdom_id)
-    //        continue;
-
-    //    //exclude the consumed kingdom
-    //    //if(!_kingdom_states[kid])
-    //    //    continue;
-
-    //    osg::Vec2 king = _kings[kid];
-
-    //    //exclude any improper oriented king
-    //    if(!isWellOriented(four, king))
-    //        continue;
-
-    //    second_round_can.push_back(kid);
-    //    airbrush(king.x(), king.y(), 20, 20, Qt::red);
-    //}
-
-    ////4. if less than 2 candidates in the second round, just infer a straight line
-    //osg::Vec2 second, third;
-    //if(second_round_can.empty())
-    //{
-    //    printf("no candidate\n");
-    //    second = (_first_branching_node + four) * 0.5;
-    //    third = second;
-    //    second = (second + _first_branching_node) * 0.5;
-    //    third = (third + four) * 0.5;
-    //}
-    //else if(second_round_can.size() == 1)
-    //{
-    //    printf("only one candidate\n");
-    //    second = _kings[second_round_can[0]];
-    //    third = second;
-    //}
-    //else
-    //{
-    //    //5. else pick the 2 that gives the maximum score
-    //    float max_score = -1.0f;
-    //    int best_kid_2 = -1;
-    //    int best_kid_3 = -1;
-    //    for(unsigned int i=0; i<second_round_can.size(); i++)
-    //        for(unsigned int j=i+1; j<second_round_can.size(); j++)
-    //        {
-    //            osg::Vec2 a = _kings[second_round_can[i]];
-    //            osg::Vec2 b = _kings[second_round_can[j]];
-
-    //            float score = computePathScore(_first_branching_node, a, b, four);
-    //            if(max_score == -1.0f || score > max_score)
-    //            {
-    //                max_score = score;
-    //                best_kid_2 = second_round_can[i];
-    //                best_kid_3 = second_round_can[j];
-    //            }
-    //            printf("score(%f)\n", score);
-    //        }
-
-    //    //airbrush(_kings[best_kid_2].x(), _kings[best_kid_2].y(), 20, 20, Qt::black);
-    //    //airbrush(_kings[best_kid_3].x(), _kings[best_kid_3].y(), 20, 20, Qt::black);
-
-    //    second = _kings[best_kid_2];
-    //    third = _kings[best_kid_3];
-    //}
-
     //6. add to main skeleton
-    if(false)
+    if(true)
     {
         std::vector <BDLSkeletonNode *> nodes;
         std::vector <osg::Vec2> edges;
