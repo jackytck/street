@@ -63,6 +63,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _first_branching_node_idx = -1;
     _min_potential = -1;
     _max_potential = -1;
+    _branch_id = 0;
 }
 
 SingleImagePalm::~SingleImagePalm()
@@ -83,6 +84,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_kingdom();
         //visualize_kingdom(false);
         visualize_edge(true);
+            while(extractSingleSubBranch()) ;
         visualize_skeleton(_skeleton, true, true);
 
         //visualize_voting_space();
@@ -128,7 +130,6 @@ void SingleImagePalm::grow()
             //inferKingAvg();
             inferKingPotential();
             dqMainbranchKingdom();
-            while(extractSingleSubBranch()) ;
         }
     }
 }
@@ -1019,7 +1020,7 @@ void SingleImagePalm::inferBestTerminalNode()
     {
         osg::Vec2 n = _main_branch_locus[i];
         int nx = n.x(), ny = n.y();
-        if(ny < min_search_y)
+        if(ny < min_search_y || ny > _lower_foliage_y)
             _convolute_score.push_back(0);
         else
         {
@@ -1236,14 +1237,16 @@ bool SingleImagePalm::isWellOriented(osg::Vec2 leaf, osg::Vec2 query, osg::Vec2 
 {
     bool ret = false;
     float det = Transformer::orient(leaf, center, query);
-    if(leaf.x() <= _root.x())
+    if(leaf.x() <= center.x())
     {
-        if(det > 0)
+        //if(det > 0)
+        if(det > 0.01)//prevent straight line
             ret = true;
     }
     else
     {
-        if(det < 0)
+        //if(det < 0)
+        if(det < -0.01)//prevent straight line
             ret = true;
     }
     return !ret;//because y-axis is pointing downwards
@@ -1318,7 +1321,6 @@ bool SingleImagePalm::extractSingleSubBranch()
 
     //2. pick the best 4-th control point
     osg::Vec2 four = _kings[picked];
-    airbrush(four.x(), four.y(), 20, 20, Qt::magenta);
 
     //3. get a list of kingdom from 1-st and 4-th control points
     std::vector <int> first_round_can = overlappedKingdom(four);
@@ -1351,6 +1353,12 @@ bool SingleImagePalm::extractSingleSubBranch()
                 continue;
             if(!isWellOriented(four, w3, w2))
                 continue;
+            //check distance (sometimes 2nd is further away from 3rd)
+            if((w2-_first_branching_node).length() >= (w3-_first_branching_node).length())
+                continue;
+            //check if all lay on one side (sometimes one of them is mis-regarded as on the other side)
+            if((four.x() > _first_branching_node.x() && w2.x() > w3.x()) || (four.x() < _first_branching_node.x() && w2.x() < w3.x()))
+                continue;
 
             cnt++;
             float score = computePathScore(_first_branching_node, w2, w3, four, std::min(500, inter));//hard-code: limit the max ops
@@ -1368,18 +1376,29 @@ bool SingleImagePalm::extractSingleSubBranch()
         }
 
     printf("ops(%lld)\n", cnt * inter);
-    //printf("max score(%f)\n", max_score);
-    //airbrush(second.x(), second.y(), 20, 20, Qt::red);
-    //airbrush(third.x(), third.y(), 20, 20, Qt::red);
+    printf("max score(%f)\n", max_score);
 
-    //6. visualize the bezier curve
-    std::vector <osg::Vec2> bezier = Transformer::interpolate_bezier_3_2d(_first_branching_node, second, third, four, inter);
-    for(unsigned int i=0; i<bezier.size(); i++)
-        airbrush(bezier[i].x(), bezier[i].y(), 5, 5, Qt::green);
+    //6. check if the score is too low, which indicates a invalid branch
+    bool valid = true;
+    if(max_score < -500 && _branch_id > 4)//hard-code: lowest acceptable score, and the first four branch must pass the test
+        valid = false;
 
-    //7. add to main skeleton
-    if(true)
+    //7. visualize the bezier curve
+    if(valid)
     {
+        std::vector <osg::Vec2> bezier = Transformer::interpolate_bezier_3_2d(_first_branching_node, second, third, four, inter);
+        for(unsigned int i=0; i<bezier.size(); i++)
+            airbrush(bezier[i].x(), bezier[i].y(), 5, 5, Qt::green);
+
+        airbrush(second.x(), second.y(), 10, 10, Qt::blue);
+        airbrush(third.x(), third.y(), 10, 10, Qt::red);
+        //airbrush(four.x(), four.y(), 10, 10, Qt::magenta);
+    }
+
+    //8. add to main skeleton if this inference is valid
+    if(valid)
+    {
+        _branch_id++;
         std::vector <BDLSkeletonNode *> nodes;
         std::vector <osg::Vec2> edges;
         std::vector <osg::Vec2> new_nodes;
@@ -1416,7 +1435,7 @@ bool SingleImagePalm::extractSingleSubBranch()
         nodes[0]->_prev = _branching;
     }
 
-    //8. consumed the kingdoms of this sub-branch
+    //9. consumed the kingdoms of this sub-branch
     for(unsigned int i=0; i<first_round_can.size(); i++)
         _kingdom_states[first_round_can[i]] = false;
 

@@ -368,6 +368,7 @@ class SingleImagePalm
         double _min_potential;//global min of _voting_space
         double _max_potential;//global max of _voting_space
         std::vector <std::vector <osg::Vec2> > _citizens;//_citizens[i] contains citizens of i-th kingdom
+        int _branch_id;//for counting which branch is growing, more signficiant for lower id
 };
 
 #endif
