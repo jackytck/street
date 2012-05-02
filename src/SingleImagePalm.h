@@ -255,6 +255,13 @@ class SingleImagePalm
         bool isWellOriented(osg::Vec2 leaf, osg::Vec2 query);
 
         /*
+         * return a circular zone of interest around the central pixel
+         * center: center of the zone
+         * radius: radius of the zone
+         */
+        inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius);
+
+        /*
          * extract a single sub-branch by letting the 4th control point be living in the farest kingdom
          * and exhaustively find out the other 2 control point
          * return false if no branch is extracted

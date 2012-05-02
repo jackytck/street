@@ -80,9 +80,9 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_king();
         //visualize_linesweep();
         //visualize_branch_search_limit();
-        visualize_kingdom();
+        //visualize_kingdom();
         while(extractSingleSubBranch()) ;
-        //visualize_kingdom(false);
+        visualize_kingdom(false);
         visualize_edge(true);
         //visualize_skeleton(_skeleton, true, true);
 
@@ -976,8 +976,8 @@ void SingleImagePalm::produceLineEdge()
 
         //4. vote charge
         float ed = pow((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2), 0.5) / 0.5f;
-        voteSingleCharge(x1, y1, std::min(ed, 10 * _edge_widths[i]), _edge_polarity[i]);
-        voteSingleCharge(x2, y2, std::min(ed, 10 * _edge_widths[i]), !_edge_polarity[i]);
+        voteSingleCharge(x1, y1, std::min(ed, 10 * _edge_widths[i]), _edge_polarity[i]);//hard-code: radius of voting
+        voteSingleCharge(x2, y2, std::min(ed, 10 * _edge_widths[i]), !_edge_polarity[i]);//hard-code: radius of voting
 
         //5. visualize edges and edge points
         //airbrush(x1, y1, 1, 1, Qt::white, &_edge_field);
@@ -1255,7 +1255,7 @@ float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, o
 {
     float ret = 0.0f;
     //1. interpolate the control points
-    std::vector <osg::Vec2> pts = Transformer::interpolate_bezier_3_2d(a, b, c, d, 1000);
+    std::vector <osg::Vec2> pts = Transformer::interpolate_bezier_3_2d(a, b, c, d, 1000);//hard-code: number of interpolation
     for(unsigned int i=0; i<pts.size(); i++)
     {
         osg::Vec2 p = pts[i];
@@ -1271,6 +1271,23 @@ float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, o
         if(!isInside(x, y))
             ret -= 10;
     }
+    return ret;
+}
+
+std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r)
+{
+    std::vector <osg::Vec2> ret;
+    int x = center.x(), y = center.y();
+    for(int i=x-r; i<=x+r; i++)
+        for(int j=y-r; j<=y+r; j++)
+        {
+            if(i < 0 || i >= _w || j < 0 || j >= _h || !isInside(i, j))
+                continue;
+
+            float d = pow((i-x)*(i-x) + (j-y)*(j-y), 0.5);
+            if(d <= r)
+                ret.push_back(osg::Vec2(i, j));
+        }
     return ret;
 }
 
@@ -1316,6 +1333,14 @@ bool SingleImagePalm::extractSingleSubBranch()
     osg::Vec2 second = retracements[0], third = retracements[1];
     airbrush(second.x(), second.y(), 20, 20, Qt::red);
     airbrush(third.x(), third.y(), 20, 20, Qt::red);
+
+    //5. wiggle the two middle points to get the best path
+    std::vector <osg::Vec2> zone2 = circularZone(second, 50);//hard-code: radius of wiggling zone
+    std::vector <osg::Vec2> zone3 = circularZone(third, 50);//hard-code: radius of wiggling zone
+    for(unsigned int i=0; i<zone2.size(); i++)
+        airbrush(zone2[i].x(), zone2[i].y(), 1, 1, Qt::darkCyan);
+    for(unsigned int i=0; i<zone3.size(); i++)
+        airbrush(zone3[i].x(), zone3[i].y(), 1, 1, Qt::darkCyan);
 
     //std::vector <int> second_round_can;
     //for(int i=0; i<int(first_round_can.size()); i++)
