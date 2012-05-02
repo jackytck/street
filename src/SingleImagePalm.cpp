@@ -1165,7 +1165,7 @@ std::vector <int> SingleImagePalm::overlappedKingdom(osg::Vec2 query)
 
         travelled.insert(_nodes[nx][ny]._kingdom);
 
-        airbrush(nx, ny, 2, 2, Qt::yellow);
+        //airbrush(nx, ny, 2, 2, Qt::yellow);
         osg::Vec2 par = _nodes[nx][ny]._prev;
         cur = par;
     }
@@ -1176,6 +1176,60 @@ std::vector <int> SingleImagePalm::overlappedKingdom(osg::Vec2 query)
         if(*it != -1)
             ret.push_back(*it);
     sort(ret.begin(), ret.end());
+
+    return ret;
+}
+
+std::vector <osg::Vec2> SingleImagePalm::getRetracement(osg::Vec2 leaf, std::vector <float> percents)
+{
+    std::vector <osg::Vec2> ret(percents.size(), osg::Vec2());
+    if(percents.empty())
+        return ret;
+
+    //1. find the distance from leaf to root
+    int x, y, lx, ly;
+    x = leaf.x();
+    y = leaf.y();
+    lx = x;
+    ly = y;
+    if(!_nodes[x][y]._valid)
+        closestPoint(x, y, lx, ly);
+    float dist = _nodes[lx][ly]._dist;
+    if(dist <= 0)
+        return ret;
+
+    //2. find the target distances
+    std::vector <float> targets;
+    for(unsigned int i=0; i<percents.size(); i++)
+        targets.push_back(dist * percents[i]);
+    std::vector <float> min_ds(percents.size(), -1.0f);
+    float cd = 0.0f;
+
+    //3. transverse from leaf to root to find the closest one to target
+    osg::Vec2 cur = leaf;
+    while(int(cur.x()) != -1 && int(cur.y()) != -1)
+    {
+        int nx = int(round(cur.x()));
+        int ny = int(round(cur.y()));
+        int nx2 = nx, ny2 = ny;
+
+        if(!_nodes[nx][ny]._valid)
+            closestPoint(nx, ny, nx2, ny2);
+
+        float d = _nodes[nx2][ny2]._dist;
+        for(unsigned int i=0; i<targets.size(); i++)
+        {
+            cd = abs(targets[i] - d);
+            if(min_ds[i] == -1.0f || cd < min_ds[i])
+            {
+                min_ds[i] = cd;
+                ret[i] = osg::Vec2(nx2, ny2);
+            }
+        }
+
+        airbrush(nx2, ny2, 2, 2, Qt::yellow);
+        cur = _nodes[nx2][ny2]._prev;
+    }
 
     return ret;
 }
@@ -1252,73 +1306,84 @@ bool SingleImagePalm::extractSingleSubBranch()
     if(first_round_can.empty())
         return ret;
 
-    std::vector <int> second_round_can;
-    for(int i=0; i<int(first_round_can.size()); i++)
-    {
-        int kid = first_round_can[i];
+    //4. get the retracement nodes
+    std::vector <float> percents;
+    percents.push_back(0.382f);
+    percents.push_back(0.618f);
+    std::vector <osg::Vec2> retracements = getRetracement(four, percents);
+    if(retracements.empty())
+        return ret;
+    osg::Vec2 second = retracements[0], third = retracements[1];
+    airbrush(second.x(), second.y(), 20, 20, Qt::red);
+    airbrush(third.x(), third.y(), 20, 20, Qt::red);
 
-        //exclude the two end-points
-        if(kid == picked || kid == _root_kingdom_id)
-            continue;
+    //std::vector <int> second_round_can;
+    //for(int i=0; i<int(first_round_can.size()); i++)
+    //{
+    //    int kid = first_round_can[i];
 
-        //exclude the consumed kingdom
-        //if(!_kingdom_states[kid])
-        //    continue;
+    //    //exclude the two end-points
+    //    if(kid == picked || kid == _root_kingdom_id)
+    //        continue;
 
-        osg::Vec2 king = _kings[kid];
+    //    //exclude the consumed kingdom
+    //    //if(!_kingdom_states[kid])
+    //    //    continue;
 
-        //exclude any improper oriented king
-        if(!isWellOriented(four, king))
-            continue;
+    //    osg::Vec2 king = _kings[kid];
 
-        second_round_can.push_back(kid);
-        airbrush(king.x(), king.y(), 20, 20, Qt::red);
-    }
+    //    //exclude any improper oriented king
+    //    if(!isWellOriented(four, king))
+    //        continue;
 
-    //4. if less than 2 candidates in the second round, just infer a straight line
-    osg::Vec2 second, third;
-    if(second_round_can.empty())
-    {
-        printf("no candidate\n");
-        second = (_first_branching_node + four) * 0.5;
-        third = second;
-        second = (second + _first_branching_node) * 0.5;
-        third = (third + four) * 0.5;
-    }
-    else if(second_round_can.size() == 1)
-    {
-        printf("only one candidate\n");
-        second = _kings[second_round_can[0]];
-        third = second;
-    }
-    else
-    {
-        //5. else pick the 2 that gives the maximum score
-        float max_score = -1.0f;
-        int best_kid_2 = -1;
-        int best_kid_3 = -1;
-        for(unsigned int i=0; i<second_round_can.size(); i++)
-            for(unsigned int j=i+1; j<second_round_can.size(); j++)
-            {
-                osg::Vec2 a = _kings[second_round_can[i]];
-                osg::Vec2 b = _kings[second_round_can[j]];
+    //    second_round_can.push_back(kid);
+    //    airbrush(king.x(), king.y(), 20, 20, Qt::red);
+    //}
 
-                float score = computePathScore(_first_branching_node, a, b, four);
-                if(max_score == -1.0f || score > max_score)
-                {
-                    max_score = score;
-                    best_kid_2 = second_round_can[i];
-                    best_kid_3 = second_round_can[j];
-                }
-                printf("score(%f)\n", score);
-            }
+    ////4. if less than 2 candidates in the second round, just infer a straight line
+    //osg::Vec2 second, third;
+    //if(second_round_can.empty())
+    //{
+    //    printf("no candidate\n");
+    //    second = (_first_branching_node + four) * 0.5;
+    //    third = second;
+    //    second = (second + _first_branching_node) * 0.5;
+    //    third = (third + four) * 0.5;
+    //}
+    //else if(second_round_can.size() == 1)
+    //{
+    //    printf("only one candidate\n");
+    //    second = _kings[second_round_can[0]];
+    //    third = second;
+    //}
+    //else
+    //{
+    //    //5. else pick the 2 that gives the maximum score
+    //    float max_score = -1.0f;
+    //    int best_kid_2 = -1;
+    //    int best_kid_3 = -1;
+    //    for(unsigned int i=0; i<second_round_can.size(); i++)
+    //        for(unsigned int j=i+1; j<second_round_can.size(); j++)
+    //        {
+    //            osg::Vec2 a = _kings[second_round_can[i]];
+    //            osg::Vec2 b = _kings[second_round_can[j]];
 
-        //airbrush(_kings[best_kid_2].x(), _kings[best_kid_2].y(), 20, 20, Qt::black);
-        //airbrush(_kings[best_kid_3].x(), _kings[best_kid_3].y(), 20, 20, Qt::black);
+    //            float score = computePathScore(_first_branching_node, a, b, four);
+    //            if(max_score == -1.0f || score > max_score)
+    //            {
+    //                max_score = score;
+    //                best_kid_2 = second_round_can[i];
+    //                best_kid_3 = second_round_can[j];
+    //            }
+    //            printf("score(%f)\n", score);
+    //        }
 
-        second = _kings[best_kid_2];
-        third = _kings[best_kid_3];
-    }
+    //    //airbrush(_kings[best_kid_2].x(), _kings[best_kid_2].y(), 20, 20, Qt::black);
+    //    //airbrush(_kings[best_kid_3].x(), _kings[best_kid_3].y(), 20, 20, Qt::black);
+
+    //    second = _kings[best_kid_2];
+    //    third = _kings[best_kid_3];
+    //}
 
     //6. add to main skeleton
     if(false)

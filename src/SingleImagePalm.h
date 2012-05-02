@@ -241,6 +241,14 @@ class SingleImagePalm
         std::vector <int> overlappedKingdom(osg::Vec2 query);
 
         /*
+         * get a list of nodes on the dijkstra's path
+         * that are closest to the list of query distances
+         * leaf: the leaf or terminal node
+         * percents: fraction of distance from leaf to root
+         */
+        std::vector <osg::Vec2> getRetracement(osg::Vec2 leaf, std::vector <float> percents);
+
+        /*
          * determine if the query point is properly oriented
          * with respect to the first branching point
          */
