@@ -81,8 +81,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_linesweep();
         //visualize_branch_search_limit();
         //visualize_kingdom();
-        while(extractSingleSubBranch()) ;
-        visualize_kingdom(false);
+        //visualize_kingdom(false);
         visualize_edge(true);
         visualize_skeleton(_skeleton, true, true);
 
@@ -119,7 +118,6 @@ void SingleImagePalm::grow()
             //does not work
             //inferRawSkeleton();
             //extractMainBranch();
-
             lineSweep();
             inferBestTerminalNode();
             extractMainBranch2();
@@ -130,7 +128,7 @@ void SingleImagePalm::grow()
             //inferKingAvg();
             inferKingPotential();
             dqMainbranchKingdom();
-
+            while(extractSingleSubBranch()) ;
         }
     }
 }
@@ -1306,11 +1304,12 @@ bool SingleImagePalm::extractSingleSubBranch()
     for(int i=_kingdom_states.size()-1; i>=0; i--)
         if(_kingdom_states[i])
         {
-            if(_population[i] < 1000)//hard-code: ignore all kindoms that have population less than 1000
+            if(_population[i] < 2000)//hard-code: ignore all kindoms that have population less than 1000
             {
                 _kingdom_states[i] = false;
                 continue;
             }
+            printf("population(%lld)\n", _population[i]);
             picked = i;
             break;
         }
@@ -1354,7 +1353,7 @@ bool SingleImagePalm::extractSingleSubBranch()
                 continue;
 
             cnt++;
-            float score = computePathScore(_first_branching_node, w2, w3, four, inter);
+            float score = computePathScore(_first_branching_node, w2, w3, four, std::min(500, inter));//hard-code: limit the max ops
             if(max_score == -1.0f || score > max_score)
             {
                 max_score = score;
@@ -1368,12 +1367,17 @@ bool SingleImagePalm::extractSingleSubBranch()
             //printf("score(%f)\n", score);
         }
 
-    //printf("ops(%lld)\n", cnt * inter);
+    printf("ops(%lld)\n", cnt * inter);
     //printf("max score(%f)\n", max_score);
-    airbrush(second.x(), second.y(), 20, 20, Qt::red);
-    airbrush(third.x(), third.y(), 20, 20, Qt::red);
+    //airbrush(second.x(), second.y(), 20, 20, Qt::red);
+    //airbrush(third.x(), third.y(), 20, 20, Qt::red);
 
-    //6. add to main skeleton
+    //6. visualize the bezier curve
+    std::vector <osg::Vec2> bezier = Transformer::interpolate_bezier_3_2d(_first_branching_node, second, third, four, inter);
+    for(unsigned int i=0; i<bezier.size(); i++)
+        airbrush(bezier[i].x(), bezier[i].y(), 5, 5, Qt::green);
+
+    //7. add to main skeleton
     if(true)
     {
         std::vector <BDLSkeletonNode *> nodes;
@@ -1412,7 +1416,7 @@ bool SingleImagePalm::extractSingleSubBranch()
         nodes[0]->_prev = _branching;
     }
 
-    //7. consumed the kingdoms of this sub-branch
+    //8. consumed the kingdoms of this sub-branch
     for(unsigned int i=0; i<first_round_can.size(); i++)
         _kingdom_states[first_round_can[i]] = false;
 
