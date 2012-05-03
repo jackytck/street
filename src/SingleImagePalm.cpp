@@ -84,7 +84,6 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_kingdom();
         //visualize_kingdom(false);
         visualize_edge(true);
-            while(extractSingleSubBranch()) ;
         visualize_skeleton(_skeleton, true, true);
 
         //visualize_voting_space();
@@ -130,6 +129,8 @@ void SingleImagePalm::grow()
             //inferKingAvg();
             inferKingPotential();
             dqMainbranchKingdom();
+            while(extractSingleSubBranch()) ;
+            forceGrow();
         }
     }
 }
@@ -1295,7 +1296,7 @@ std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r,
     return ret;
 }
 
-bool SingleImagePalm::extractSingleSubBranch()
+bool SingleImagePalm::extractSingleSubBranch(bool force)
 {
     printf("extractSingleSubBranch...\n");
     bool ret = false;
@@ -1382,6 +1383,8 @@ bool SingleImagePalm::extractSingleSubBranch()
     bool valid = true;
     if(max_score < -500 && _branch_id > 4)//hard-code: lowest acceptable score, and the first four branch must pass the test
         valid = false;
+    if(force)
+        valid = true;
 
     //7. visualize the bezier curve
     if(valid)
@@ -1390,8 +1393,8 @@ bool SingleImagePalm::extractSingleSubBranch()
         for(unsigned int i=0; i<bezier.size(); i++)
             airbrush(bezier[i].x(), bezier[i].y(), 5, 5, Qt::green);
 
-        airbrush(second.x(), second.y(), 10, 10, Qt::blue);
-        airbrush(third.x(), third.y(), 10, 10, Qt::red);
+        //airbrush(second.x(), second.y(), 10, 10, Qt::blue);
+        //airbrush(third.x(), third.y(), 10, 10, Qt::red);
         //airbrush(four.x(), four.y(), 10, 10, Qt::magenta);
     }
 
@@ -1441,6 +1444,66 @@ bool SingleImagePalm::extractSingleSubBranch()
 
     ret = true;
     return ret;
+}
+
+
+void SingleImagePalm::forceGrow()
+{
+    printf("forceGrow...\n");
+    if(!_skeleton)
+        return;
+
+    //1. bfs skeleton to see which kingdom are not covered
+    std::vector <bool> consumed(_kingdom_states.size(), false);
+    std::queue <BDLSkeletonNode *> Queue;
+    Queue.push(_skeleton);
+    while(!Queue.empty())
+    {
+        BDLSkeletonNode *n = Queue.front();
+        Queue.pop();
+
+        int x = n->_sx;
+        int y = n->_sz;
+        int nx, ny;
+        closestPoint(x, y, nx, ny);
+        consumed[_nodes[nx][ny]._kingdom] = true;
+
+        for(unsigned int i=0; i<n->_children.size(); i++)
+            Queue.push(n->_children[i]);
+    }
+
+    //2. for each unconvered kingdom, inspect...
+    for(int i=consumed.size()-1; i>=0; i--)
+    {
+        bool state = consumed[i];
+        if(state)
+            continue;
+        if(_population[i] < 2000)//hard-code: populaton constraint
+            continue;
+        std::vector <int> overlap = overlappedKingdom(_kings[i]);
+        if(overlap.size() < 3)//hard-code: skip it
+            continue;
+        if(_kings[i].y() > _root.y() - abs(_lower_foliage_y-_root.y())*0.8f)
+            continue;
+        int un_cnt = 0;
+        for(unsigned int j=0; j<overlap.size(); j++)
+            if(!consumed[overlap[j]])
+                un_cnt++;
+        if(un_cnt / float(overlap.size()) > 0.5f)
+        {
+
+            for(unsigned int j=0; j<overlap.size(); j++)
+            {
+                _kingdom_states[overlap[j]] = true;
+                consumed[overlap[j]] = true;
+                if(j!=overlap.size()-1)
+                    printf("%d->", overlap[j]);
+                else
+                    printf("%d\n", overlap[j]);
+            }
+            extractSingleSubBranch(true);
+        }
+    }
 }
 
 void SingleImagePalm::visualize_dijkstra()

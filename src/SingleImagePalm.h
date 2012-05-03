@@ -267,9 +267,16 @@ class SingleImagePalm
         /*
          * extract a single sub-branch by letting the 4th control point be living in the farest kingdom
          * and exhaustively find out the other 2 control point
+         * force: force grow a branch even its score is low
          * return false if no branch is extracted
          */
-        bool extractSingleSubBranch();
+        bool extractSingleSubBranch(bool force = false);
+
+        /*
+         * after consuming all the kingdoms, the skeleton may not cover all the kingdoms,
+         * in this case, force grow branches to cover all kingdoms, even if their scores are low
+         */
+        void forceGrow();
 
         /*
          * ### Debug Visualizations ###
