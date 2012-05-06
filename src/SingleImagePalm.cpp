@@ -10,10 +10,11 @@ const bool ImageNode::operator < (const ImageNode& node) const
     return !(_dist < node._dist);
 }
 
-SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid(false)
+SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _data_valid(false)
 {
     ISPLoader loader;
     loader.load(isp0);
+    _output = output;
 
     _img = QImage(loader._img_path.c_str());
     if(_img.isNull())
@@ -58,6 +59,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0): _verbose(false), _data_valid
     _max_kingdom = -1;
     _raw_skeleton = NULL;
     _skeleton = NULL;
+    _blender_skeleton = NULL;
     _lower_foliage_y = -1;
     _higher_foliage_y = -1;
     _first_branching_node_idx = -1;
@@ -103,6 +105,7 @@ SingleImagePalm::~SingleImagePalm()
     //delete all the bdl skeletons
     BDLSkeletonNode::delete_this(_raw_skeleton);
     BDLSkeletonNode::delete_this(_skeleton);
+    BDLSkeletonNode::delete_this(_blender_skeleton);
 }
 
 void SingleImagePalm::setVerbose(bool debug)
@@ -131,6 +134,8 @@ void SingleImagePalm::grow()
             dqMainbranchKingdom();
             while(extractSingleSubBranch()) ;
             forceGrow();
+            convertTo3D();
+            save();
         }
     }
 }
@@ -1219,7 +1224,7 @@ std::vector <osg::Vec2> SingleImagePalm::getRetracement(osg::Vec2 leaf, std::vec
         float d = _nodes[nx2][ny2]._dist;
         for(unsigned int i=0; i<targets.size(); i++)
         {
-            cd = abs(targets[i] - d);
+            cd = fabs(targets[i] - d);
             if(min_ds[i] == -1.0f || cd < min_ds[i])
             {
                 min_ds[i] = cd;
@@ -1504,6 +1509,203 @@ void SingleImagePalm::forceGrow()
             extractSingleSubBranch(true);
         }
     }
+}
+
+std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::vector <float> max_angs, int times)
+{
+    std::vector <float> ret;
+    if(min_angs.empty() || min_angs.size() != max_angs.size())
+        return ret;
+
+    //1. initially all angles are random
+    std::vector <osg::Vec2> positions;//points on unit circle
+    for(unsigned int i=0; i<min_angs.size(); i++)
+    {
+        float ang = (rand() % int(max_angs[i] - min_angs[i])) + min_angs[i];
+        ret.push_back(ang);
+        float rad = ang * M_PI / 180.0f;
+        positions.push_back(osg::Vec2(cos(rad), sin(rad)));
+    }
+
+    //2. bounce under the effect of repulsive force
+    for(int t=0; t<times; t++)
+    {
+        std::vector <osg::Vec2> tmp_pos = positions;
+        for(unsigned int i=0; i<tmp_pos.size(); i++)
+        {
+            osg::Vec2 c = tmp_pos[i];
+            osg::Vec2 f(0.0f, 0.0f);
+            for(unsigned int j=0; j<tmp_pos.size(); j++)
+                if(i != j)
+                {
+                    osg::Vec2 o = tmp_pos[j];
+                    osg::Vec2 d = c - o;
+                    float r = d.length();
+                    if(r != 0.0f)
+                    {
+                        d.normalize();
+                        f += d * (1.0f / (r * r));
+                    }
+                }
+            osg::Vec2 n = c + f - c * (f * c);
+            n.normalize();
+            float arg_n = atan2(n.y(), n.x()) * 180 / M_PI;
+            int ret_i = int(ret[i] + 360) % 360;
+            int new_i = int(arg_n + 360) % 360;
+            int case1 = abs(ret_i - 1 - new_i);
+            int case2 = abs(ret_i + 1 - new_i);
+            //printf("%d: ang(%.0f) -> ", i, ret[i]);
+            if(std::min(case1, 360 - case1) < std::min(case2, 360 - case2))
+            {
+                if(ret[i]-1 >= min_angs[i])
+                {
+                    ret[i]--;
+                    float rad = ret[i] * M_PI / 180.0f;
+                    positions[i] = osg::Vec2(cos(rad), sin(rad));
+                }
+            }
+            else if(std::min(case1, 360 - case1) > std::min(case2, 360 - case2))
+            {
+                if(ret[i]+1 <= max_angs[i])
+                {
+                    ret[i]++;
+                    float rad = ret[i] * M_PI / 180.0f;
+                    positions[i] = osg::Vec2(cos(rad), sin(rad));
+                }
+            }
+            //printf("ang(%.0f)\n", ret[i]);
+        }
+    }
+
+    return ret;
+}
+
+void SingleImagePalm::convertTo3D()
+{
+    printf("convertTo3D...\n");
+    float scale = 250.0f;//hard-code: to scale down the skeleton
+
+    //1. convert everything from image space to blender space
+    _blender_skeleton = BDLSkeletonNode::copy_tree(_skeleton);
+
+    //2. translate to origin and scale it
+    BDLSkeletonNode *branching = NULL;
+    std::queue <BDLSkeletonNode *> Queue;
+    Queue.push(_blender_skeleton);
+    while(!Queue.empty())
+    {
+        BDLSkeletonNode *node = Queue.front();
+        Queue.pop();
+
+        node->_sx -= _skeleton->_sx;
+        node->_sy -= _skeleton->_sy;
+        node->_sz -= _skeleton->_sz;
+
+        node->_sx *= 1.0f / scale;
+        node->_sy *= 1.0f / scale;
+        node->_sz *= -1.0f / scale;
+
+        if(node->_children.size() >= 2)
+            branching = node;
+
+        for(unsigned int i=0; i<node->_children.size(); i++)
+            Queue.push(node->_children[i]);
+    }
+
+    //3. rank the branches according to its height
+    if(!branching || branching->_children.size() < 1)
+    {
+        printf("SingleImagePalm::convertTo3D():branching(NULL) error\n");
+        return;
+    }
+    float branching_x = branching->_sx;
+    std::vector <float> max_xs;
+    float max_depth = -1.0f;//limit of maximum +/- depth
+    for(unsigned int i=0; i<branching->_children.size(); i++)
+    {
+        BDLSkeletonNode *cur = branching->_children[i];
+        float h = 0.0f;
+        float mx = -1.0f, mx2 = -1.0f;//mx2 stores the sign, too
+        while(cur)
+        {
+            h = cur->_sz;
+            float sx = fabs(cur->_sx - branching_x);
+            if(max_depth == -1.0f || sx > max_depth)
+                max_depth = sx;
+            if(mx == -1.0f || sx > mx)
+            {
+                mx = sx;
+                mx2 = cur->_sx;
+            }
+            if(cur->_children.empty())
+                cur = NULL;
+            else
+                cur = cur->_children[0];
+        }
+        max_xs.push_back(mx2);
+    }
+    //printf("max_depth(%f) branching_x(%f)\n", max_depth, branching_x);
+
+    //4. pick the highest branch_i, infer the range of possible Θ_i
+    std::vector <float> min_angs, max_angs;
+    for(unsigned int i=0; i<branching->_children.size(); i++)
+    {
+        int branch = i;
+        //5. find the permitting angle's range
+        float min_range = -M_PI / 4;
+        float max_range = M_PI / 4;
+        float min_range2 = 3 * M_PI / 4;
+        float max_range2 = 5 * M_PI / 4;
+        float mx = max_xs[branch];
+        if(fabs(mx - branching_x) > max_depth * 0.2f && max_depth > 0.0f)//hard-code: don't rotate too much if it is closed to origin
+        {
+            min_range = atan2(-max_depth, mx - branching_x);
+            max_range = atan2(max_depth, mx - branching_x);
+            if(mx - branching_x < 0)
+            {
+                min_range += 2 * M_PI;
+                std::swap(min_range, max_range);
+            }
+        }
+        else
+        {
+            if(mx - branching_x  < 0)
+            {
+                min_range = min_range2;
+                max_range = max_range2;
+            }
+        }
+        min_angs.push_back(min_range * 180 / M_PI);
+        max_angs.push_back(max_range * 180 / M_PI);
+
+        //printf("branch(%d) min(%.02f) max(%.02f)\n", i, min_range * 180/M_PI, max_range * 180/M_PI);
+    }
+
+    //6. bounce back and forth to get the best arrangement
+    std::vector <float> best_angs;//store all the current best angles
+    best_angs = bounce(min_angs, max_angs);//hard-code: to bounce 100 times
+
+    //7. add depth to the branch
+    for(unsigned int i=0; i<branching->_children.size(); i++)
+    {
+        int branch = i;
+        float best_ang = best_angs[branch] * M_PI / 180;
+        BDLSkeletonNode *cur = branching->_children[branch];
+        while(cur)
+        {
+            cur->_sy = (cur->_sx - branching_x) * tan(best_ang);
+            //printf("branch(%d) depth(%f)\n", branch, cur->_sy);
+            if(cur->_children.empty())
+                cur = NULL;
+            else
+                cur = cur->_children[0];
+        }
+    }
+}
+
+void SingleImagePalm::save()
+{
+    BDLSkeletonNode::save_skeleton(_blender_skeleton, _output.c_str());
 }
 
 void SingleImagePalm::visualize_dijkstra()

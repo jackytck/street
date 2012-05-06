@@ -45,8 +45,9 @@ class SingleImagePalm
     public:
         /*
          * isp0: the image and segmentation pair
+         * output: path to save the new skeleton
          */
-        SingleImagePalm(std::string isp0);
+        SingleImagePalm(std::string isp0, std::string output = "/tmp/z_skeleton");
         ~SingleImagePalm();
 
         /*
@@ -279,6 +280,26 @@ class SingleImagePalm
         void forceGrow();
 
         /*
+         * simulate force bouncing between branches for optimizing their positions
+         * min_angs: minimum angle of i-th branch (in degree)
+         * max_angs: maximum angle of i-th branch (in degree)
+         * times: number of iterations
+         * return the arrangement of angles after bouncing in degree
+         */
+        std::vector <float> bounce(std::vector <float> min_angs, std::vector <float> max_angs, int times = 100);
+
+        /*
+         * convert 2d to 3d skeleton
+         * will set the _blender_skeleton
+         */
+        void convertTo3D();
+
+        /*
+         * save back the learnt skeleton(_blender_skeleton) to disk
+         */
+        void save();
+
+        /*
          * ### Debug Visualizations ###
          */
 
@@ -341,6 +362,7 @@ class SingleImagePalm
 
     private:
         bool _verbose;
+        std::string _output;
         bool _data_valid;
         QImage _img;
         QImage _seg;
@@ -358,6 +380,7 @@ class SingleImagePalm
         std::vector <long long> _population;//i-th kingdom has population _population[i]
         BDLSkeletonNode *_raw_skeleton;
         BDLSkeletonNode *_skeleton;
+        BDLSkeletonNode *_blender_skeleton;
         BDLSkeletonNode *_branching;//points to the first branching node
         std::vector <osg::Vec2> _main_branch_locus;//set by lineSweep()
         std::vector <long long> _convolute_score;
