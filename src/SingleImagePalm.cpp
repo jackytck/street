@@ -1511,10 +1511,10 @@ void SingleImagePalm::forceGrow()
     }
 }
 
-std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::vector <float> max_angs, int times)
+std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::vector <float> max_angs, std::vector <float> radii, int times)
 {
     std::vector <float> ret;
-    if(min_angs.empty() || min_angs.size() != max_angs.size())
+    if(min_angs.empty() || min_angs.size() != max_angs.size() || max_angs.size() != radii.size())
         return ret;
 
     //1. initially all angles are random
@@ -1522,9 +1522,10 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
     for(unsigned int i=0; i<min_angs.size(); i++)
     {
         float ang = (rand() % int(max_angs[i] - min_angs[i])) + min_angs[i];
+        float r = radii[i];
         ret.push_back(ang);
         float rad = ang * M_PI / 180.0f;
-        positions.push_back(osg::Vec2(cos(rad), sin(rad)));
+        positions.push_back(osg::Vec2(r * cos(rad), r * sin(rad)));
     }
 
     //2. bounce under the effect of repulsive force
@@ -1534,6 +1535,9 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
         for(unsigned int i=0; i<tmp_pos.size(); i++)
         {
             osg::Vec2 c = tmp_pos[i];
+            osg::Vec2 uc = c;
+            float r = radii[i];
+            uc.normalize();
             osg::Vec2 f(0.0f, 0.0f);
             for(unsigned int j=0; j<tmp_pos.size(); j++)
                 if(i != j)
@@ -1547,7 +1551,7 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
                         f += d * (1.0f / (r * r));
                     }
                 }
-            osg::Vec2 n = c + f - c * (f * c);
+            osg::Vec2 n = c + f - uc * (f * uc);
             n.normalize();
             float arg_n = atan2(n.y(), n.x()) * 180 / M_PI;
             int ret_i = int(ret[i] + 360) % 360;
@@ -1561,7 +1565,7 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
                 {
                     ret[i]--;
                     float rad = ret[i] * M_PI / 180.0f;
-                    positions[i] = osg::Vec2(cos(rad), sin(rad));
+                    positions[i] = osg::Vec2(r * cos(rad), r * sin(rad));
                 }
             }
             else if(std::min(case1, 360 - case1) > std::min(case2, 360 - case2))
@@ -1570,7 +1574,7 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
                 {
                     ret[i]++;
                     float rad = ret[i] * M_PI / 180.0f;
-                    positions[i] = osg::Vec2(cos(rad), sin(rad));
+                    positions[i] = osg::Vec2(r * cos(rad), r * sin(rad));
                 }
             }
             //printf("ang(%.0f)\n", ret[i]);
@@ -1612,7 +1616,7 @@ void SingleImagePalm::convertTo3D()
             Queue.push(node->_children[i]);
     }
 
-    //3. rank the branches according to its height
+    //3. find the maximum displacement in x-axix of each branch
     if(!branching || branching->_children.size() < 1)
     {
         printf("SingleImagePalm::convertTo3D():branching(NULL) error\n");
@@ -1646,12 +1650,11 @@ void SingleImagePalm::convertTo3D()
     }
     //printf("max_depth(%f) branching_x(%f)\n", max_depth, branching_x);
 
-    //4. pick the highest branch_i, infer the range of possible Θ_i
-    std::vector <float> min_angs, max_angs;
+    //4. given the maximum depth, infer the range of permitting Θ_i
+    std::vector <float> min_angs, max_angs, radii;
     for(unsigned int i=0; i<branching->_children.size(); i++)
     {
         int branch = i;
-        //5. find the permitting angle's range
         float min_range = -M_PI / 4;
         float max_range = M_PI / 4;
         float min_range2 = 3 * M_PI / 4;
@@ -1677,15 +1680,16 @@ void SingleImagePalm::convertTo3D()
         }
         min_angs.push_back(min_range * 180 / M_PI);
         max_angs.push_back(max_range * 180 / M_PI);
+        radii.push_back(fabs(mx - branching_x));
 
         //printf("branch(%d) min(%.02f) max(%.02f)\n", i, min_range * 180/M_PI, max_range * 180/M_PI);
     }
 
-    //6. bounce back and forth to get the best arrangement
+    //5. bounce back and forth to get the best arrangement
     std::vector <float> best_angs;//store all the current best angles
-    best_angs = bounce(min_angs, max_angs);//hard-code: to bounce 100 times
+    best_angs = bounce(min_angs, max_angs, radii);//hard-code: to bounce 100 times
 
-    //7. add depth to the branch
+    //6. add depth to the branch
     for(unsigned int i=0; i<branching->_children.size(); i++)
     {
         int branch = i;

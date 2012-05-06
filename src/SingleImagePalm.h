@@ -283,10 +283,11 @@ class SingleImagePalm
          * simulate force bouncing between branches for optimizing their positions
          * min_angs: minimum angle of i-th branch (in degree)
          * max_angs: maximum angle of i-th branch (in degree)
+         * radii: radius of i-th branch rotating plane
          * times: number of iterations
          * return the arrangement of angles after bouncing in degree
          */
-        std::vector <float> bounce(std::vector <float> min_angs, std::vector <float> max_angs, int times = 100);
+        std::vector <float> bounce(std::vector <float> min_angs, std::vector <float> max_angs, std::vector <float> radii, int times = 100);
 
         /*
          * convert 2d to 3d skeleton
