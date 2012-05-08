@@ -4,13 +4,14 @@
 #include <set>
 #include "Transformer.h"
 #include "LineSegmentDetector.h"
+#include "GenericLeafGrower.h"
 
 const bool ImageNode::operator < (const ImageNode& node) const
 {
     return !(_dist < node._dist);
 }
 
-SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _data_valid(false), _grow_valid(false)
+SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _output_debug_img(false), _data_valid(false), _grow_valid(false)
 {
     ISPLoader loader;
     loader.load(isp0);
@@ -72,7 +73,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose
 
 SingleImagePalm::~SingleImagePalm()
 {
-    if(_verbose)
+    if(_output_debug_img)
     {
         std::string path = _output_dir + "/debug.png";
         if(_root.x() != -1 && _root.y() != -1)
@@ -110,12 +111,13 @@ SingleImagePalm::~SingleImagePalm()
     BDLSkeletonNode::delete_this(_blender_skeleton);
 }
 
-void SingleImagePalm::setVerbose(bool debug)
+void SingleImagePalm::setVerbose(bool debug, bool debug_image)
 {
     _verbose = debug;
+    _output_debug_img = debug_image;
 }
 
-void SingleImagePalm::grow()
+void SingleImagePalm::growSkeleton()
 {
     if(_data_valid)
     {
@@ -140,6 +142,17 @@ void SingleImagePalm::grow()
             _grow_valid = true;
         }
     }
+}
+
+void SingleImagePalm::growGenericLeaf(BDLSkeletonNode *root, std::string gleaf, float leaf_scale)
+{
+    GenericLeafGrower leaf_grower;
+    leaf_grower.set_verbose(_verbose);
+    leaf_grower.setup(root, gleaf, leaf_scale);
+    leaf_grower.grow_palm3();
+
+    std::string out_leaves = _output_dir + "/z_leaves";
+    leaf_grower.save(out_leaves);
 }
 
 void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color, QImage *img)

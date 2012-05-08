@@ -34,11 +34,12 @@ class ImageNode
 };
 
 /* A class to model a palm tree from an image-segmentation-pari.
- * Flow: refer to grow()
+ * Flow: refer to growSkeleton()
  *
  * Usage:
  * 1. SingleImagePalm()
- * 2. grow()
+ * 2. growSkeleton()
+ * 3. growGenericLeaf()
  */
 class SingleImagePalm
 {
@@ -52,14 +53,23 @@ class SingleImagePalm
 
         /*
          * set if to print debug msg and other related info
+         * debug: true to print debug message
+         * debug: true to debug image
          */
-        void setVerbose(bool debug);
+        void setVerbose(bool debug, bool debug_image = false);
 
         /*
-         * 1. Find the root of the palm from segmentation
-         * 2. bfs the whole segmentation
+         * grow a 3D BDLSkeleton
          */
-        void grow();
+        void growSkeleton();
+
+        /*
+         * grow generic palm leaves
+         * root: the root of the BDLSkeleton, usually grown by growSkeleton
+         * gleaf: path to the generic palm texture
+         * leaf_scale: scale of the leaf (currently unused)
+         */
+        void growGenericLeaf(BDLSkeletonNode *root, std::string gleaf, float leaf_scale);
 
         /*
          * save back the learnt skeleton(_blender_skeleton) to disk
@@ -363,6 +373,7 @@ class SingleImagePalm
 
     private:
         bool _verbose;
+        bool _output_debug_img;
         std::string _input_img_path;
         std::string _input_seg_path;
         std::string _output_dir;

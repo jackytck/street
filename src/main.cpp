@@ -286,28 +286,29 @@ int main(int argc, char *argv[])
 		}
 
         //for growing palm tree skeleton from an image segmentation pair
-        if(is_single_img_palm && !isp0.empty() && !out_palm_dir.empty())
+        if(is_single_img_palm && !isp0.empty() && !out_palm_dir.empty() && in_bdlsg.empty())
         {
-            printf("growing for single image palm...\n");
+            printf("growing skeleton for single image palm...\n");
             SingleImagePalm sip(isp0, out_palm_dir);
-            sip.setVerbose(verbose);
-            sip.grow();
+            bool out_debug_img = true;
+            sip.setVerbose(verbose, out_debug_img);
+            sip.growSkeleton();
             sip.save();
 			goto Break;
         }
         //for growing realistic palm leaves
-        if(is_single_img_palm && !isp0.empty() && !in_bdlsg.empty() && !in_gleaf.empty() && leaf_scale != 0.0f && !out_realistic_leaf.empty())
+        if(is_single_img_palm && !isp0.empty() && !in_bdlsg.empty() && !in_gleaf.empty() && leaf_scale != 0.0f && !out_realistic_leaf.empty() && !out_palm_dir.empty())
         {
+            printf("growing leaves for single image palm...\n");
             BDLSkeletonLoader loader;
             loader.load_file(QString(in_bdlsg.c_str()));
             BDLSkeletonNode *skeleton = loader.construct_bdl_skeleton_tree();
 
-            GenericLeafGrower leaf_grower;
-            leaf_grower.set_verbose(verbose);
-            leaf_grower.setup(skeleton, in_gleaf, leaf_scale);
+            SingleImagePalm sip(isp0, out_palm_dir);
+            sip.setVerbose(verbose);
+            sip.growGenericLeaf(skeleton, in_gleaf, leaf_scale);
 
-            leaf_grower.grow_palm3();
-            leaf_grower.save(out_realistic_leaf);
+            BDLSkeletonNode::delete_this(skeleton);
 			goto Break;
         }
 
