@@ -10,19 +10,21 @@ const bool ImageNode::operator < (const ImageNode& node) const
     return !(_dist < node._dist);
 }
 
-SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _data_valid(false)
+SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _data_valid(false), _grow_valid(false)
 {
     ISPLoader loader;
     loader.load(isp0);
-    _output = output;
+    _input_img_path = loader._img_path;
+    _input_seg_path = loader._seg_path;
+    _output_dir = output;
 
-    _img = QImage(loader._img_path.c_str());
+    _img = QImage(_input_img_path.c_str());
     if(_img.isNull())
     {
         printf("SingleImagePalm::SingleImagePalm():_img(%s) error\n", loader._img_path.c_str());
         return;
     }
-    _seg = QImage(loader._seg_path.c_str());
+    _seg = QImage(_input_seg_path.c_str());
     if(_seg.isNull())
     {
         printf("SingleImagePalm::SingleImagePalm():_seg(%s) error\n", loader._seg_path.c_str());
@@ -72,7 +74,7 @@ SingleImagePalm::~SingleImagePalm()
 {
     if(_verbose)
     {
-        const char * path = "/tmp/debug.png";
+        std::string path = _output_dir + "/debug.png";
         if(_root.x() != -1 && _root.y() != -1)
         {
             //airbrush(_root.x(), _root.y());
@@ -92,14 +94,14 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_edge(true, &_edge_map);
 
         if(!_debug_img.isNull())
-            _debug_img.save(QString(path), "PNG", 70);
+            _debug_img.save(QString(path.c_str()), "PNG", 70);
 
         //if(!_edge_map.isNull())
         //    _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
         //if(!_edge_field.isNull())
         //    _edge_field.save(QString("/tmp/debug_edge_point.png"), "PNG", 70);
 
-        printf("debug image is outputted at '%s'\n", path);
+        printf("debug image is outputted at '%s'\n", path.c_str());
     }
 
     //delete all the bdl skeletons
@@ -135,7 +137,7 @@ void SingleImagePalm::grow()
             while(extractSingleSubBranch()) ;
             forceGrow();
             convertTo3D();
-            save();
+            _grow_valid = true;
         }
     }
 }
@@ -1709,7 +1711,20 @@ void SingleImagePalm::convertTo3D()
 
 void SingleImagePalm::save()
 {
-    BDLSkeletonNode::save_skeleton(_blender_skeleton, _output.c_str());
+    if(_data_valid && _grow_valid)
+    {
+        std::string out_skeleton = _output_dir + "/z_skeleton";
+        std::string out_isp0 = _output_dir + "/master.isp0";
+        BDLSkeletonNode::save_skeleton(_blender_skeleton, out_skeleton.c_str());
+
+        //file IO
+        FILE *out = fopen(out_isp0.c_str(), "w");
+        fprintf(out, "%s\n", _input_img_path.c_str());
+        fprintf(out, "%s\n", _input_seg_path.c_str());
+        fprintf(out, "%d %d\n", int(_root.x()), int(_root.y()));
+    }
+    else
+        printf("SingleImagePalm::save():_data_valid(%d):_grow_valid(%d) error\n", int(_data_valid), int(_grow_valid));
 }
 
 void SingleImagePalm::visualize_dijkstra()

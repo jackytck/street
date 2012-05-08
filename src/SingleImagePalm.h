@@ -47,7 +47,7 @@ class SingleImagePalm
          * isp0: the image and segmentation pair
          * output: path to save the new skeleton
          */
-        SingleImagePalm(std::string isp0, std::string output = "/tmp/z_skeleton");
+        SingleImagePalm(std::string isp0, std::string output = "/tmp");
         ~SingleImagePalm();
 
         /*
@@ -60,6 +60,11 @@ class SingleImagePalm
          * 2. bfs the whole segmentation
          */
         void grow();
+
+        /*
+         * save back the learnt skeleton(_blender_skeleton) to disk
+         */
+        void save();
 
     protected:
         /*
@@ -296,11 +301,6 @@ class SingleImagePalm
         void convertTo3D();
 
         /*
-         * save back the learnt skeleton(_blender_skeleton) to disk
-         */
-        void save();
-
-        /*
          * ### Debug Visualizations ###
          */
 
@@ -363,8 +363,11 @@ class SingleImagePalm
 
     private:
         bool _verbose;
-        std::string _output;
+        std::string _input_img_path;
+        std::string _input_seg_path;
+        std::string _output_dir;
         bool _data_valid;
+        bool _grow_valid;
         QImage _img;
         QImage _seg;
         osg::Vec2 _root;

@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
 
     //single image palm
     bool is_single_img_palm = false;
+    std::string out_palm_dir("");
 
 	//outputs
 	std::string out_bdlsg(""), out_bezier(""), out_bezier_palm(""), out_xiao(""), out_cache(""), out_leaf(""), out_generic_leaf(""), out_realistic_leaf("");
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
 		("output-bezier,o", po::value <std::string>(&out_bezier), "Output as Blender's BezierTriple(s)")
 		("output-bezier-palm", po::value <std::string>(&out_bezier_palm), "Output palm as Blender's BezierTriple(s)")
 		("output-xiao", po::value <std::string>(&out_xiao), "Output as XiaoPeng obj format")
+		("output-palm-dir", po::value <std::string>(&out_palm_dir), "The palm directory to be outputted from")
 		("input-bdlsg,G", po::value <std::string>(&in_bdlsg), "Input path of BDLSG for conversion")
 		("input_leaf,E", po::value <std::string>(&in_eleaf), "Input path of (Blender edited) leaves")
 		("leaf,l", po::value <std::string>(&out_leaf), "Output billboard leaf")
@@ -283,13 +285,29 @@ int main(int argc, char *argv[])
 			goto Break;
 		}
 
-        //for growing palm tree from an image segmentation pair
-        if(is_single_img_palm && !isp0.empty())
+        //for growing palm tree skeleton from an image segmentation pair
+        if(is_single_img_palm && !isp0.empty() && !out_palm_dir.empty())
         {
             printf("growing for single image palm...\n");
-            SingleImagePalm sip(isp0);
+            SingleImagePalm sip(isp0, out_palm_dir);
             sip.setVerbose(verbose);
             sip.grow();
+            sip.save();
+			goto Break;
+        }
+        //for growing realistic palm leaves
+        if(is_single_img_palm && !isp0.empty() && !in_bdlsg.empty() && !in_gleaf.empty() && leaf_scale != 0.0f && !out_realistic_leaf.empty())
+        {
+            BDLSkeletonLoader loader;
+            loader.load_file(QString(in_bdlsg.c_str()));
+            BDLSkeletonNode *skeleton = loader.construct_bdl_skeleton_tree();
+
+            GenericLeafGrower leaf_grower;
+            leaf_grower.set_verbose(verbose);
+            leaf_grower.setup(skeleton, in_gleaf, leaf_scale);
+
+            leaf_grower.grow_palm3();
+            leaf_grower.save(out_realistic_leaf);
 			goto Break;
         }
 
