@@ -289,9 +289,9 @@ int main(int argc, char *argv[])
         if(is_single_img_palm && !isp0.empty() && !out_palm_dir.empty() && in_bdlsg.empty())
         {
             printf("growing skeleton for single image palm...\n");
+            bool debug_img = true;
             SingleImagePalm sip(isp0, out_palm_dir);
-            bool out_debug_img = true;
-            sip.setVerbose(verbose, out_debug_img);
+            sip.setVerbose(verbose, debug_img);
             sip.growSkeleton();
             sip.save();
 			goto Break;
@@ -300,12 +300,13 @@ int main(int argc, char *argv[])
         if(is_single_img_palm && !isp0.empty() && !in_bdlsg.empty() && !in_gleaf.empty() && leaf_scale != 0.0f && !out_realistic_leaf.empty() && !out_palm_dir.empty())
         {
             printf("growing leaves for single image palm...\n");
+            bool debug_img = true;
             BDLSkeletonLoader loader;
             loader.load_file(QString(in_bdlsg.c_str()));
             BDLSkeletonNode *skeleton = loader.construct_bdl_skeleton_tree();
 
             SingleImagePalm sip(isp0, out_palm_dir);
-            sip.setVerbose(verbose);
+            sip.setVerbose(verbose, debug_img);
             sip.growRealisticLeaf(skeleton, in_gleaf, leaf_scale);
 
             BDLSkeletonNode::delete_this(skeleton);

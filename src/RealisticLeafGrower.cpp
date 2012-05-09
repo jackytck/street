@@ -105,7 +105,7 @@ void RealisticLeafGrower::grow_single_image(int w, int h, float scale, int root_
         //for each target leaf
         for(unsigned int i=0; i<_all_tex.size(); i+=4)
         {
-            //_all_tex and _all_tex_isp0 are in order (0,0),(0,1),(1,0),(1,1)
+            //_all_tex and _all_tex_isp0 follow this order: (0,0),(0,1),(1,0),(1,1)
 
             //targets
             osg::Vec2 at = _all_tex[i];
@@ -573,9 +573,247 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
     }//end post-processing
 }
 
-void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex)
+void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v)
 {
-    printf("w(%d) h(%d) scale(%f) root(%d,%d) img(%s) seg(%s) all_v(%d) all_tex(%d)\n", w, h, scale, root_x, root_y, src_path.c_str(), src_seg_path.c_str(), int(all_v.size()), int(all_tex.size()));
+    //printf("w(%d) h(%d) scale(%f) root(%d,%d) img(%s) seg(%s) all_v(%d)\n", w, h, scale, root_x, root_y, src_path.c_str(), src_seg_path.c_str(), int(all_v.size()));
+
+    //1. setup data
+    _all_v = all_v;
+    _all_tex.clear();
+
+    //2: tile generic leaf texture and get their corresponding texture coords
+    _tiled_texture = tile_texture(_generic_texure, _all_v.size()/4, w, h, _all_tex);
+
+    //3: generate source texture coords
+    osg::Vec3 cg(0, 0, 0);//useless
+    QImage src_img(src_path.c_str());
+    if(src_img.isNull())
+    {
+        printf("RealisticLeafGrower::grow_single_palm():src_img(%s) error\n", src_path.c_str());
+        return;
+    }
+    int sw = src_img.width(), sh = src_img.height();
+    _all_tex_isp0 = tex_coord_from_vertex(_all_v, cg, scale, root_x, root_y, sw, sh);
+
+    //4: re-paint the giant new-texture by projectively backward-wrapping each non-transparent pixel from target to source
+    if(_all_tex.size() == _all_tex_isp0.size() && _all_tex.size() % 4 == 0)
+    {
+        //open seg img too
+        QImage src_seg(src_seg_path.c_str());
+        if(src_seg.isNull())
+        {
+            printf("RealisticLeafGrower::grow_single_palm():src_seg(%s) error\n", src_seg_path.c_str());
+            return;
+        }
+
+        //allocate H
+        float **H = (float**) calloc (3, sizeof(float*));
+        for(int i=0; i<3; i++)
+        H[i] = (float *) calloc (3, sizeof(float));
+
+        //store each un-touched target leaf for post-processing
+        std::vector <int> untouched;
+        int max_paint_pixel = 0;//store the maximum number of pixels to be paint
+        std::vector <int> full_touched;//store the target leaf which are fully touched
+
+        //for each target leaf
+        for(unsigned int i=0; i<_all_tex.size(); i+=4)
+        {
+            //_all_tex and _all_tex_isp0 are in order (0,0),(0,1),(1,0),(1,1)
+
+            //targets
+            osg::Vec2 at = _all_tex[i];
+            osg::Vec2 bt = _all_tex[i+1];
+            osg::Vec2 et = _all_tex[i+2];
+            osg::Vec2 ft = _all_tex[i+3];
+
+            at.x() *= w;
+            bt.x() *= w;
+            et.x() *= w;
+            ft.x() *= w;
+
+            at.y() = h - at.y() * h;
+            bt.y() = h - bt.y() * h;
+            et.y() = h - et.y() * h;
+            ft.y() = h - ft.y() * h;
+
+            int tw = int(et.x()) - int(at.x());
+            int th = int(at.y()) - int(bt.y());
+
+            int tstartx = int(bt.x());
+            int tstarty = int(bt.y());
+
+            //sources
+            osg::Vec2 as = _all_tex_isp0[i];
+            osg::Vec2 bs = _all_tex_isp0[i+1];
+            osg::Vec2 es = _all_tex_isp0[i+2];
+            osg::Vec2 fs = _all_tex_isp0[i+3];
+
+            as.x() *= sw;
+            bs.x() *= sw;
+            es.x() *= sw;
+            fs.x() *= sw;
+
+            as.y() = sh - as.y() * sh;
+            bs.y() = sh - bs.y() * sh;
+            es.y() = sh - es.y() * sh;
+            fs.y() = sh - fs.y() * sh;
+
+            //H are in order (0,0),(1,0),(1,1),(0,1)
+            Transformer::homography(H, tw, th, as.x(), as.y(), es.x(), es.y(), fs.x(), fs.y(), bs.x(), bs.y());
+
+            //number of pixels painted
+            int pixel_painted = 0;
+
+            //backward-wrapping
+            for(int j=0; j<tw; j++)
+                for(int k=0; k<th; k++)
+                {
+                    //set pixel coords
+                    int set_x = tstartx + j;
+                    int set_y = tstarty + k;
+
+                    //only set pixels inside the leaf area
+                    QRgb leaf_color = _tiled_texture.pixel(set_x, set_y);
+                    if(qAlpha(leaf_color) != 0) //if not fully transparent
+                    {
+                        osg::Vec3 dir = Transformer::mult_vec(H, osg::Vec3(j, k, 1.0f));
+                        float fx = dir.x();
+                        float fy = dir.y();
+
+                        //prepare for bilinear interpolation
+                        float px = fx - floor(fx);
+                        float py = fy - floor(fy);
+                        int ix = (int)floor(fx);
+                        int iy = (int)floor(fy);
+
+                        if(ix < 0 || ix >= sw-1 || iy < 0 || iy >= sh-1)
+                            continue;
+
+                        //only use pixels inside the mask
+                        QRgb seg_color = src_seg.pixel(ix, iy);
+                        if(qRed(seg_color) != 0 || qGreen(seg_color) != 0 || qBlue(seg_color) != 0)
+                        {
+                            //color at 4 corners
+                            QRgb ptr00 = src_img.pixel(ix, iy);
+                            QRgb ptr01 = src_img.pixel(ix, iy + 1);
+                            QRgb ptr10 = src_img.pixel(ix + 1, iy);
+                            QRgb ptr11 = src_img.pixel(ix + 1, iy + 1);
+
+                            //bilinear interpolations
+                            unsigned char r, g, b;
+                            r = Transformer::bilinear(px, py, qRed(ptr00), qRed(ptr01), qRed(ptr10), qRed(ptr11));
+                            g = Transformer::bilinear(px, py, qGreen(ptr00), qGreen(ptr01), qGreen(ptr10), qGreen(ptr11));
+                            b = Transformer::bilinear(px, py, qBlue(ptr00), qBlue(ptr01), qBlue(ptr10), qBlue(ptr11));
+
+                            //blend source and target
+                            int br = (1.0f * r + 0.0f * qRed(leaf_color));
+                            int bg = (1.0f * g + 0.0f * qGreen(leaf_color));
+                            int bb = (1.0f * b + 0.0f * qBlue(leaf_color));
+
+                            //blend or not is subject to data preference
+                            QRgb blend = qRgb(br, bg, bb);
+                            //blend = qRgb(r, g, b);
+
+                            _tiled_texture.setPixel(set_x, set_y, blend);
+                            pixel_painted++;
+                        }
+
+                        //store the maximum number of pixels to be painted
+                        if(i==0)
+                            max_paint_pixel++;
+                    }
+                }
+
+            //append un-touched and fully-touched leaves for post-processing
+            if(pixel_painted < max_paint_pixel * 0.95)
+                untouched.push_back(i);
+            if(pixel_painted == max_paint_pixel)
+                full_touched.push_back(i);
+
+        }//end for this target leaf
+
+        //debug
+        //printf("untouched(%d) full_touched(%d)\n", int(untouched.size()), int(full_touched.size()));
+
+        //post-processing: copy a random full_touched leaf to each untouched one
+        if(!full_touched.empty())
+        {
+            for(unsigned int i=0; i<untouched.size(); i++)
+            {
+                int src = full_touched[rand()%full_touched.size()];
+                int des = untouched[i];
+
+                //source
+                osg::Vec2 as = _all_tex[src];
+                osg::Vec2 bs = _all_tex[src+1];
+                osg::Vec2 es = _all_tex[src+2];
+                osg::Vec2 fs = _all_tex[src+3];
+
+                as.x() *= w;
+                bs.x() *= w;
+                es.x() *= w;
+                fs.x() *= w;
+
+                as.y() = h - as.y() * h;
+                bs.y() = h - bs.y() * h;
+                es.y() = h - es.y() * h;
+                fs.y() = h - fs.y() * h;
+
+                int sstartx = int(bs.x());
+                int sstarty = int(bs.y());
+
+                //destination
+                osg::Vec2 ad = _all_tex[des];
+                osg::Vec2 bd = _all_tex[des+1];
+                osg::Vec2 ed = _all_tex[des+2];
+                osg::Vec2 fd = _all_tex[des+3];
+
+                ad.x() *= w;
+                bd.x() *= w;
+                ed.x() *= w;
+                fd.x() *= w;
+
+                ad.y() = h - ad.y() * h;
+                bd.y() = h - bd.y() * h;
+                ed.y() = h - ed.y() * h;
+                fd.y() = h - fd.y() * h;
+
+                int dw = int(ed.x()) - int(ad.x());
+                int dh = int(ad.y()) - int(bd.y());
+
+                int dstartx = int(bd.x());
+                int dstarty = int(bd.y());
+
+                //copy
+                for(int j=0; j<dw; j++)
+                    for(int k=0; k<dh; k++)
+                    {
+                        //set pixel coords
+                        int set_x = dstartx + j;
+                        int set_y = dstarty + k;
+
+                        //get pixel coords
+                        int get_x = sstartx + j;
+                        int get_y = sstarty + k;
+
+                        QRgb color = _tiled_texture.pixel(get_x, get_y);
+                        //QRgb red = qRgba(255, 0, 0, qAlpha(color));//demo
+                        _tiled_texture.setPixel(set_x, set_y, color);
+                    }
+            }//end each untouched
+        }//end post-processing
+
+        //deallocate H
+        for(int i=0; i<3; i++)
+            free(H[i]);
+        free(H);
+    }
+    else
+    {
+        printf("RealisticLeafGrower::grow_single_palm():_all_tex(%d) _all_tex_isp0(%d) size error\n", int(_all_tex.size()), int(_all_tex_isp0.size()));
+        return;
+    }
 }
 
 void RealisticLeafGrower::grow_single_image(int w, int h, float scale, std::string isp0)
@@ -585,11 +823,11 @@ void RealisticLeafGrower::grow_single_image(int w, int h, float scale, std::stri
     grow_single_image(w, h, scale, loader._rootX, loader._rootY, loader._img_path, loader._seg_path);
 }
 
-void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, std::string isp0, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex)
+void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, std::string isp0, std::vector <osg::Vec3> all_v)
 {
     ISPLoader loader;
     loader.load(isp0);
-    grow_single_palm(w, h, scale, loader._rootX, loader._rootY, loader._img_path, loader._seg_path, all_v, all_tex);
+    grow_single_palm(w, h, scale, loader._rootX, loader._rootY, loader._img_path, loader._seg_path, all_v);
 }
 
 QImage RealisticLeafGrower::tile_texture(std::string generic_path, int num_leaf, int w, int h, std::vector <osg::Vec2>& tex)

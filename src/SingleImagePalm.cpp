@@ -169,10 +169,24 @@ void SingleImagePalm::growRealisticLeaf(BDLSkeletonNode *root, std::string gleaf
     real_grower.setup(root, gleaf, leaf_scale);
 
     int w = 2048;//hard-code: width and height of giant texture
-    real_grower.grow_single_palm(w, w, _img2skeleton_scale, _isp0, leaf_grower._all_v, leaf_grower._all_tex);
+    real_grower.grow_single_palm(w, w, 1.0f/_img2skeleton_scale, _isp0, leaf_grower._all_v);
 
     std::string out_leaves = _output_dir + "/z_leaves";
     real_grower.save(out_leaves);//realistic texture path
+
+
+    //debug
+    //ISPLoader loader;
+    //loader.load(_isp0);
+    //std::vector <osg::Vec2> src_tex_coords = RealisticLeafGrower::tex_coord_from_vertex(leaf_grower._all_v, osg::Vec3(0,0,0), 1.0f/_img2skeleton_scale, loader._rootX, loader._rootY, _img.width(), _img.height());
+    //int sw = _img.width(), sh = _img.height();
+    //for(unsigned int i=0; i<src_tex_coords.size(); i++)
+    //{
+    //    int x = src_tex_coords[i].x() * sw;
+    //    int y = sh - src_tex_coords[i].y() * sh;
+    //    printf("%d %d\n", x, y);
+    //    airbrush(x, y, 10, 10, Qt::blue);
+    //}
 }
 
 void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color, QImage *img)
