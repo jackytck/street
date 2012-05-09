@@ -40,6 +40,7 @@ class ImageNode
  * 1. SingleImagePalm()
  * 2. growSkeleton()
  * 3. growGenericLeaf()
+ * 4. growRealisticLeaf()
  */
 class SingleImagePalm
 {
@@ -70,6 +71,14 @@ class SingleImagePalm
          * leaf_scale: scale of the leaf (currently unused)
          */
         void growGenericLeaf(BDLSkeletonNode *root, std::string gleaf, float leaf_scale);
+
+        /*
+         * grow realistic leaves using the texture from isp0
+         * root: the root of the BDLSkeleton, usually grown by growSkeleton
+         * gleaf: path to the generic palm texture
+         * leaf_scale: scale of the leaf (currently unused)
+         */
+        void growRealisticLeaf(BDLSkeletonNode *root, std::string gleaf, float leaf_scale);
 
         /*
          * save back the learnt skeleton(_blender_skeleton) to disk
@@ -379,6 +388,8 @@ class SingleImagePalm
         std::string _output_dir;
         bool _data_valid;
         bool _grow_valid;
+        float _img2skeleton_scale;
+        std::string _isp0;
         QImage _img;
         QImage _seg;
         osg::Vec2 _root;

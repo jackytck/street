@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 
             SingleImagePalm sip(isp0, out_palm_dir);
             sip.setVerbose(verbose);
-            sip.growGenericLeaf(skeleton, in_gleaf, leaf_scale);
+            sip.growRealisticLeaf(skeleton, in_gleaf, leaf_scale);
 
             BDLSkeletonNode::delete_this(skeleton);
 			goto Break;

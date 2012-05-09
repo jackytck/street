@@ -573,11 +573,23 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
     }//end post-processing
 }
 
+void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex)
+{
+    printf("w(%d) h(%d) scale(%f) root(%d,%d) img(%s) seg(%s) all_v(%d) all_tex(%d)\n", w, h, scale, root_x, root_y, src_path.c_str(), src_seg_path.c_str(), int(all_v.size()), int(all_tex.size()));
+}
+
 void RealisticLeafGrower::grow_single_image(int w, int h, float scale, std::string isp0)
 {
     ISPLoader loader;
     loader.load(isp0);
     grow_single_image(w, h, scale, loader._rootX, loader._rootY, loader._img_path, loader._seg_path);
+}
+
+void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, std::string isp0, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex)
+{
+    ISPLoader loader;
+    loader.load(isp0);
+    grow_single_palm(w, h, scale, loader._rootX, loader._rootY, loader._img_path, loader._seg_path, all_v, all_tex);
 }
 
 QImage RealisticLeafGrower::tile_texture(std::string generic_path, int num_leaf, int w, int h, std::vector <osg::Vec2>& tex)

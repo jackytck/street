@@ -64,6 +64,14 @@ class RealisticLeafGrower
          */
         void grow_laser(int w, int h, std::string simple_pt, std::string cameras);
 
+        /* grow textured leaves from palm data
+         * which is controlled by class SingleImagePalm
+         * same input as grow_single_image()
+         */
+        void grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex);
+;
+        void grow_single_palm(int w, int h, float scale, std::string isp0, std::vector <osg::Vec3> all_v, std::vector <osg::Vec2> all_tex);
+
 		/* output the grown leaves for external use, e.g. Blender
          * return the absolute path of the newly created texture
 		 */

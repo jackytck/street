@@ -5,13 +5,14 @@
 #include "Transformer.h"
 #include "LineSegmentDetector.h"
 #include "GenericLeafGrower.h"
+#include "RealisticLeafGrower.h"
 
 const bool ImageNode::operator < (const ImageNode& node) const
 {
     return !(_dist < node._dist);
 }
 
-SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _output_debug_img(false), _data_valid(false), _grow_valid(false)
+SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _output_debug_img(false), _data_valid(false), _grow_valid(false), _img2skeleton_scale(250.0f)
 {
     ISPLoader loader;
     loader.load(isp0);
@@ -50,6 +51,7 @@ SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose
     //_img.save(QString("/tmp/test_tiff.png"), "PNG", 80);test if the qt plugin works
 
     //some initial values
+    _isp0 = isp0;
     _debug_img = QImage(iw, ih, QImage::Format_ARGB32);
     _debug_img.fill(0);
     _edge_map = QImage(iw, ih, QImage::Format_ARGB32);
@@ -153,6 +155,24 @@ void SingleImagePalm::growGenericLeaf(BDLSkeletonNode *root, std::string gleaf, 
 
     std::string out_leaves = _output_dir + "/z_leaves";
     leaf_grower.save(out_leaves);
+}
+
+void SingleImagePalm::growRealisticLeaf(BDLSkeletonNode *root, std::string gleaf, float leaf_scale)
+{
+    GenericLeafGrower leaf_grower;
+    leaf_grower.set_verbose(_verbose);
+    leaf_grower.setup(root, gleaf, leaf_scale);
+    leaf_grower.grow_palm3();
+
+    RealisticLeafGrower real_grower;
+    real_grower.set_verbose(_verbose);
+    real_grower.setup(root, gleaf, leaf_scale);
+
+    int w = 2048;//hard-code: width and height of giant texture
+    real_grower.grow_single_palm(w, w, _img2skeleton_scale, _isp0, leaf_grower._all_v, leaf_grower._all_tex);
+
+    std::string out_leaves = _output_dir + "/z_leaves";
+    real_grower.save(out_leaves);//realistic texture path
 }
 
 void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color, QImage *img)
@@ -1602,7 +1622,7 @@ std::vector <float> SingleImagePalm::bounce(std::vector <float> min_angs, std::v
 void SingleImagePalm::convertTo3D()
 {
     printf("convertTo3D...\n");
-    float scale = 250.0f;//hard-code: to scale down the skeleton
+    float scale = _img2skeleton_scale;//hard-code: to scale down from image to skeleton space
 
     //1. convert everything from image space to blender space
     _blender_skeleton = BDLSkeletonNode::copy_tree(_skeleton);
