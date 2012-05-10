@@ -4,10 +4,11 @@
 PalmParameter::PalmParameter(float noise): _noise(noise)
 {
     //generated from palm_parser.py
-    _keys = std::vector <osg::Vec3> (12, osg::Vec3(0, 0, 0));
-    _key_frames = std::vector <osg::Vec3> (12, osg::Vec3(0, 0, 0));
+    _keys = std::vector <osg::Vec3> (15, osg::Vec3(0, 0, 0));
+    _key_frames = std::vector <osg::Vec3> (15, osg::Vec3(0, 0, 0));
 
-    /* high V-shape
+    // high V-shape
+    /*
     _keys[0] = osg::Vec3(0.883929, 0.000000, 0.761077);
     _keys[1] = osg::Vec3(1.948742, 0.000000, 1.697612);
     _keys[2] = osg::Vec3(2.968704, 0.000001, 2.447819);
@@ -36,6 +37,7 @@ PalmParameter::PalmParameter(float noise): _noise(noise)
     */
 
     // flatter I-shape
+    /*
     _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
     _keys[1] = osg::Vec3(1.948742, 0.000000, 1.697612);
     _keys[2] = osg::Vec3(2.968705, 0.000001, 2.447817);
@@ -61,6 +63,40 @@ PalmParameter::PalmParameter(float noise): _noise(noise)
     _key_frames[9] = osg::Vec3(3.044957, 0.766794, 1.203224);
     _key_frames[10] = osg::Vec3(2.230387, 0.583862, 0.612793);
     _key_frames[11] = osg::Vec3(1.025882, 0.008749, -0.000002);
+    */
+
+    // flat and parallel shape
+    _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
+    _keys[1] = osg::Vec3(1.948742, -0.000000, 1.697611);
+    _keys[2] = osg::Vec3(2.968705, 0.000001, 2.447816);
+    _keys[3] = osg::Vec3(4.148567, 0.000003, 3.235168);
+    _keys[4] = osg::Vec3(5.651835, 0.000004, 3.992207);
+    _keys[5] = osg::Vec3(6.700879, 0.000006, 4.478876);
+    _keys[6] = osg::Vec3(7.801176, 0.000007, 4.826833);
+    _keys[7] = osg::Vec3(9.117768, 0.000009, 4.958492);
+    _keys[8] = osg::Vec3(10.208658, 0.000010, 4.986704);
+    _keys[9] = osg::Vec3(11.261932, 0.000013, 4.883256);
+    _keys[10] = osg::Vec3(12.390441, 0.000016, 4.610532);
+    _keys[11] = osg::Vec3(13.443714, 0.000006, 4.234361);
+    _keys[12] = osg::Vec3(14.412352, 0.000019, 3.905212);
+    _keys[13] = osg::Vec3(14.412352, 0.000019, 3.905212);
+    _keys[14] = osg::Vec3(14.412352, 0.000019, 3.905212);
+
+    _key_frames[0] = osg::Vec3(1.619085, 0.232098, 5.273793);
+    _key_frames[1] = osg::Vec3(1.834677, 0.286030, 5.180647);
+    _key_frames[2] = osg::Vec3(2.139131, 0.481281, 4.952158);
+    _key_frames[3] = osg::Vec3(2.112075, 0.522812, 4.698750);
+    _key_frames[4] = osg::Vec3(1.977981, 0.415813, 4.510448);
+    _key_frames[5] = osg::Vec3(2.379813, 0.265945, 4.307689);
+    _key_frames[6] = osg::Vec3(2.451467, 0.124078, 4.066025);
+    _key_frames[7] = osg::Vec3(2.552517, 0.386666, 4.205357);
+    _key_frames[8] = osg::Vec3(2.602466, 0.423112, 4.035241);
+    _key_frames[9] = osg::Vec3(2.753526, 0.749207, 4.125126);
+    _key_frames[10] = osg::Vec3(2.707400, 1.028262, 3.904652);
+    _key_frames[11] = osg::Vec3(2.286763, 1.124326, 3.068305);
+    _key_frames[12] = osg::Vec3(1.508535, 0.697400, 2.189299);
+    _key_frames[13] = osg::Vec3(1.554820, 0.199906, 1.322029);
+    _key_frames[14] = osg::Vec3(1.500421, -0.376643, 0.469103);
 
     setupKeyFrames();
     srand(time(NULL));
@@ -156,7 +192,7 @@ void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3
 
 void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4)
 {
-    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 10;
+    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 18;
     //int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
     //float slop = -1.0f;
     //if(ctr4.x()!=ctr1.x())
@@ -177,7 +213,7 @@ void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr
     }
 
     if(_keys_dist != 0.0f && _target_dist != 0.0f)
-        _scale = _target_dist / _keys_dist * 0.65f;
+        _scale = _target_dist / _keys_dist * 0.50f;//hard-code: the widht of leaf
 
     setUpVec();
 }

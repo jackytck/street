@@ -176,17 +176,37 @@ void SingleImagePalm::growRealisticLeaf(BDLSkeletonNode *root, std::string gleaf
 
 
     //debug
-    //ISPLoader loader;
-    //loader.load(_isp0);
-    //std::vector <osg::Vec2> src_tex_coords = RealisticLeafGrower::tex_coord_from_vertex(leaf_grower._all_v, osg::Vec3(0,0,0), 1.0f/_img2skeleton_scale, loader._rootX, loader._rootY, _img.width(), _img.height());
-    //int sw = _img.width(), sh = _img.height();
-    //for(unsigned int i=0; i<src_tex_coords.size(); i++)
-    //{
-    //    int x = src_tex_coords[i].x() * sw;
-    //    int y = sh - src_tex_coords[i].y() * sh;
-    //    printf("%d %d\n", x, y);
-    //    airbrush(x, y, 10, 10, Qt::blue);
-    //}
+    ISPLoader loader;
+    loader.load(_isp0);
+    std::vector <osg::Vec2> src_tex_coords = RealisticLeafGrower::tex_coord_from_vertex(leaf_grower._all_v, osg::Vec3(0,0,0), 1.0f/_img2skeleton_scale, loader._rootX, loader._rootY, _img.width(), _img.height());
+    int sw = _img.width(), sh = _img.height();
+    for(unsigned int i=0; i<src_tex_coords.size(); i+=4)
+    {
+        osg::Vec2 a, b, e, f;
+        a = src_tex_coords[i];
+        b = src_tex_coords[i+1];
+        e = src_tex_coords[i+2];
+        f = src_tex_coords[i+3];
+
+        a.x() = a.x() * sw;
+        a.y() = sh - a.y() * sh;
+        b.x() = b.x() * sw;
+        b.y() = sh - b.y() * sh;
+        e.x() = e.x() * sw;
+        e.y() = sh - e.y() * sh;
+        f.x() = f.x() * sw;
+        f.y() = sh - f.y() * sh;
+
+        airbrush(a.x(), a.y(), 5, 5, Qt::blue);
+        airbrush(b.x(), b.y(), 5, 5, Qt::blue);
+        airbrush(e.x(), e.y(), 5, 5, Qt::blue);
+        airbrush(f.x(), f.y(), 5, 5, Qt::blue);
+
+        drawLine(a.x(), a.y(), b.x(), b.y(), Qt::green, 1);
+        drawLine(b.x(), b.y(), f.x(), f.y(), Qt::green, 1);
+        drawLine(f.x(), f.y(), e.x(), e.y(), Qt::green, 1);
+        drawLine(e.x(), e.y(), a.x(), a.y(), Qt::green, 1);
+    }
 }
 
 void SingleImagePalm::airbrush(int x, int y, int w, int h, QColor color, QImage *img)

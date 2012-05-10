@@ -715,6 +715,7 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                             QRgb blend = qRgb(br, bg, bb);
                             //blend = qRgb(r, g, b);
 
+                            //QRgb green = qRgb(0, 255, 0);//debug
                             _tiled_texture.setPixel(set_x, set_y, blend);
                             pixel_painted++;
                         }
@@ -799,6 +800,7 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
 
                         QRgb color = _tiled_texture.pixel(get_x, get_y);
                         //QRgb red = qRgba(255, 0, 0, qAlpha(color));//demo
+                        //QRgb trans = qRgba(0, 0, 0, 0);//demo
                         _tiled_texture.setPixel(set_x, set_y, color);
                     }
             }//end each untouched
