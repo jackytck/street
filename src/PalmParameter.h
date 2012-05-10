@@ -86,6 +86,16 @@ class PalmParameter
          */
         osg::Vec3 getTangent(int k);
 
+        /*
+         * unit up vector at k-th key or step
+         * this is parallel to the plane formed by 3 points:
+         * start, middle and end point of palm skeleton
+         * if these 3 points are collinear, then return a random vector
+         * that is orthogonal to this line
+         */
+        void setUpVec();
+        osg::Vec3 getUpVec();
+
     private:
         std::vector <osg::Vec3> _keys;//coords of each key
         std::vector <osg::Vec3> _key_frames;//basis coords of each key
@@ -94,6 +104,7 @@ class PalmParameter
         float _target_dist;//length of the target
         float _scale;//_target_dist / _keys_dist
         float _noise;//randomness of the palm leaves
+        osg::Vec3 _up;//the up vector
 };
 
 #endif
