@@ -6,6 +6,7 @@
 #include "Transformer.h"
 #include <fstream>
 #include "LaserProjector.h"
+#include "SingleImagePalm.h"
 
 RealisticLeafGrower::RealisticLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
@@ -573,6 +574,59 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
     }//end post-processing
 }
 
+void RealisticLeafGrower::closest_unused(const QImage& img, const QImage& seg, int sx, int sy, int x, int y, int& rx, int& ry)
+{
+    rx = x;
+    ry = y;
+    if(seg.isNull() || img.isNull())
+        return;
+    int w = seg.width(), h = seg.height();
+
+    //1. dijkstra from query until it find a point that is inside the segmentation and it is not used before
+    const float diag_d = 1.4142135623730951f;
+    std::vector <std::vector <bool> > visited(w, std::vector <bool> (h, false));
+    ImageNode root(sx == -1 ? x : sx, sy == -1 ? y : sy);
+    std::priority_queue<ImageNode> pq;
+    pq.push(root);
+
+    while(!pq.empty())
+    {
+        ImageNode n = pq.top();
+        pq.pop();
+        int nx = n._pos.x(), ny = n._pos.y();
+        if(nx < 0 || nx >= w || ny < 0 || ny >= h || visited[nx][ny])
+            continue;
+
+        QRgb seg_color = seg.pixel(nx, ny);
+        if(qRed(seg_color) != 0 || qGreen(seg_color) != 0 || qBlue(seg_color) != 0)
+        {
+            QRgb img_color = img.pixel(nx, ny);
+            if(qAlpha(img_color) !=0 && (qRed(img_color) != 0 || qGreen(img_color) != 0 || qBlue(img_color) != 0))
+            {
+                rx = nx;
+                ry = ny;
+                return;
+            }
+        }
+        visited[nx][ny] = true;
+        float d = n._dist;
+
+        //upwards
+        pq.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny-1, nx, ny, d+1));
+        pq.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
+
+        //sideways
+        pq.push(ImageNode(nx-1, ny, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny, nx, ny, d+1));
+
+        //downwards
+        pq.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
+        pq.push(ImageNode(nx, ny+1, nx, ny, d+1));
+        pq.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
+    }
+}
+
 void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v)
 {
     //printf("w(%d) h(%d) scale(%f) root(%d,%d) img(%s) seg(%s) all_v(%d)\n", w, h, scale, root_x, root_y, src_path.c_str(), src_seg_path.c_str(), int(all_v.size()));
@@ -666,7 +720,12 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
             int pixel_painted = 0;
 
             //backward-wrapping
+            //int sx = -1, sy = -1;//search the closest unused pixel from this point
+            std::vector <osg::Vec2> insides;//pixels inside segmentation
+            std::vector <QRgb> inside_colors;//color of the inside pixels
+            std::vector <osg::Vec4> outsides;//pixels outside segmentation + (set_x, set_y)
             for(int j=0; j<tw; j++)
+            {
                 for(int k=0; k<th; k++)
                 {
                     //set pixel coords
@@ -688,9 +747,12 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                         int iy = (int)floor(fy);
 
                         if(ix < 0 || ix >= sw-1 || iy < 0 || iy >= sh-1)
+                        {
+                            outsides.push_back(osg::Vec4(ix, iy, set_x, set_y));
                             continue;
+                        }
 
-                        //only use pixels inside the mask
+                        //prefer using pixels inside the mask
                         QRgb seg_color = src_seg.pixel(ix, iy);
                         if(qRed(seg_color) != 0 || qGreen(seg_color) != 0 || qBlue(seg_color) != 0)
                         {
@@ -717,7 +779,29 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
 
                             //QRgb green = qRgb(0, 255, 0);//debug
                             _tiled_texture.setPixel(set_x, set_y, blend);
+                            insides.push_back(osg::Vec2(ix, iy));
+                            inside_colors.push_back(blend);
                             pixel_painted++;
+                        }
+                        //otherwise use the cloest and unused pixel
+                        else
+                        {
+                            outsides.push_back(osg::Vec4(ix, iy, set_x, set_y));
+                            /*
+                            int cx, cy;
+                            if(sx == -1 || sy == -1)
+                                closest_unused(src_img, src_seg, sx, sy, ix, iy, cx, cy);//search (ix,iy) from (sx,sy) and return (cx,cy)
+                            else
+                            {
+                                cx = sx;
+                                cy = sy;
+                            }
+                            QRgb color = src_img.pixel(cx, cy);
+                            _tiled_texture.setPixel(set_x, set_y, color);
+                            pixel_painted++;
+                            sx = cx;
+                            sy = cy;
+                            */
                         }
 
                         //store the maximum number of pixels to be painted
@@ -725,6 +809,39 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                             max_paint_pixel++;
                     }
                 }
+            }
+            if(!insides.empty())
+            {
+                for(unsigned int osp=0; osp<outsides.size(); osp++)
+                {
+                    osg::Vec4 op4 = outsides[osp];
+                    osg::Vec2 op(op4.x(), op4.y());
+                    //get the cloeset inside pixels
+                    float min_d = -1.0f;
+                    int min_idx = -1;
+                    for(unsigned int isp=0; isp<insides.size(); isp++)
+                    {
+                        QRgb ic = inside_colors[isp];
+                        if(qAlpha(ic) !=0 && (qRed(ic) != 0 || qGreen(ic) != 0 || qBlue(ic) != 0))
+                        {
+                            osg::Vec2 ip = insides[isp];
+                            float d = (op - ip).length2();
+                            if(min_d == -1.0f || d < min_d)
+                            {
+                                min_d = d;
+                                min_idx = isp;
+                            }
+                        }
+                    }
+                    if(min_idx != -1)
+                    {
+                        QRgb color = inside_colors[min_idx];
+                        //QRgb red = qRgb(255, 0, 0);
+                        _tiled_texture.setPixel(int(op4.z()), int(op4.w()), color);
+                    }
+                }
+            }
+            //else we will copy color from other leaf in post-processing
 
             //append un-touched and fully-touched leaves for post-processing
             if(pixel_painted < max_paint_pixel * 0.95)
@@ -732,79 +849,84 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
             if(pixel_painted == max_paint_pixel)
                 full_touched.push_back(i);
 
+            printf("%d\n", i);
         }//end for this target leaf
 
         //debug
         //printf("untouched(%d) full_touched(%d)\n", int(untouched.size()), int(full_touched.size()));
 
         //post-processing: copy a random full_touched leaf to each untouched one
-        if(!full_touched.empty())
+        if(false)
         {
-            for(unsigned int i=0; i<untouched.size(); i++)
+            if(!full_touched.empty())
             {
-                int src = full_touched[rand()%full_touched.size()];
-                int des = untouched[i];
+                for(unsigned int i=0; i<untouched.size(); i++)
+                {
+                    int src = full_touched[rand()%full_touched.size()];
+                    int des = untouched[i];
 
-                //source
-                osg::Vec2 as = _all_tex[src];
-                osg::Vec2 bs = _all_tex[src+1];
-                osg::Vec2 es = _all_tex[src+2];
-                osg::Vec2 fs = _all_tex[src+3];
+                    //source
+                    osg::Vec2 as = _all_tex[src];
+                    osg::Vec2 bs = _all_tex[src+1];
+                    osg::Vec2 es = _all_tex[src+2];
+                    osg::Vec2 fs = _all_tex[src+3];
 
-                as.x() *= w;
-                bs.x() *= w;
-                es.x() *= w;
-                fs.x() *= w;
+                    as.x() *= w;
+                    bs.x() *= w;
+                    es.x() *= w;
+                    fs.x() *= w;
 
-                as.y() = h - as.y() * h;
-                bs.y() = h - bs.y() * h;
-                es.y() = h - es.y() * h;
-                fs.y() = h - fs.y() * h;
+                    as.y() = h - as.y() * h;
+                    bs.y() = h - bs.y() * h;
+                    es.y() = h - es.y() * h;
+                    fs.y() = h - fs.y() * h;
 
-                int sstartx = int(bs.x());
-                int sstarty = int(bs.y());
+                    int sstartx = int(bs.x());
+                    int sstarty = int(bs.y());
 
-                //destination
-                osg::Vec2 ad = _all_tex[des];
-                osg::Vec2 bd = _all_tex[des+1];
-                osg::Vec2 ed = _all_tex[des+2];
-                osg::Vec2 fd = _all_tex[des+3];
+                    //destination
+                    osg::Vec2 ad = _all_tex[des];
+                    osg::Vec2 bd = _all_tex[des+1];
+                    osg::Vec2 ed = _all_tex[des+2];
+                    osg::Vec2 fd = _all_tex[des+3];
 
-                ad.x() *= w;
-                bd.x() *= w;
-                ed.x() *= w;
-                fd.x() *= w;
+                    ad.x() *= w;
+                    bd.x() *= w;
+                    ed.x() *= w;
+                    fd.x() *= w;
 
-                ad.y() = h - ad.y() * h;
-                bd.y() = h - bd.y() * h;
-                ed.y() = h - ed.y() * h;
-                fd.y() = h - fd.y() * h;
+                    ad.y() = h - ad.y() * h;
+                    bd.y() = h - bd.y() * h;
+                    ed.y() = h - ed.y() * h;
+                    fd.y() = h - fd.y() * h;
 
-                int dw = int(ed.x()) - int(ad.x());
-                int dh = int(ad.y()) - int(bd.y());
+                    int dw = int(ed.x()) - int(ad.x());
+                    int dh = int(ad.y()) - int(bd.y());
 
-                int dstartx = int(bd.x());
-                int dstarty = int(bd.y());
+                    int dstartx = int(bd.x());
+                    int dstarty = int(bd.y());
 
-                //copy
-                for(int j=0; j<dw; j++)
-                    for(int k=0; k<dh; k++)
-                    {
-                        //set pixel coords
-                        int set_x = dstartx + j;
-                        int set_y = dstarty + k;
+                    //copy
+                    for(int j=0; j<dw; j++)
+                        for(int k=0; k<dh; k++)
+                        {
+                            //set pixel coords
+                            int set_x = dstartx + j;
+                            int set_y = dstarty + k;
 
-                        //get pixel coords
-                        int get_x = sstartx + j;
-                        int get_y = sstarty + k;
+                            //get pixel coords
+                            int get_x = sstartx + j;
+                            int get_y = sstarty + k;
 
-                        QRgb color = _tiled_texture.pixel(get_x, get_y);
-                        //QRgb red = qRgba(255, 0, 0, qAlpha(color));//demo
-                        //QRgb trans = qRgba(0, 0, 0, 0);//demo
-                        _tiled_texture.setPixel(set_x, set_y, color);
-                    }
-            }//end each untouched
-        }//end post-processing
+                            QRgb color = _tiled_texture.pixel(get_x, get_y);
+                            //QRgb red = qRgba(255, 0, 0, qAlpha(color));//demo
+                            //QRgb trans = qRgba(0, 0, 0, 0);//demo
+                            _tiled_texture.setPixel(set_x, set_y, color);
+                        }
+                }//end each untouched
+            }
+        }
+        //end post-processing
 
         //deallocate H
         for(int i=0; i<3; i++)

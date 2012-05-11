@@ -193,7 +193,7 @@ void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3
 
 void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4)
 {
-    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 18;
+    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 20;
     //int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
     //float slop = -1.0f;
     //if(ctr4.x()!=ctr1.x())
@@ -281,7 +281,7 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     if(_gravity)
     {
         int sign = mirror ? -1 : 1;
-        int max_ang = 45;//hard-code: maximum angle of rotation under the gravity effect
+        int max_ang = 50;//hard-code: maximum angle of rotation under the gravity effect
         int noise = rand() % 30 - 15;//hard-code: degree of noise added to the rotation
         float effect = fabs(tangent * osg::Vec3(0, 0, -1));
         float rotate = sign * (max_ang + noise) * M_PI / 180 * effect;

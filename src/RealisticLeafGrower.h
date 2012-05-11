@@ -120,6 +120,17 @@ class RealisticLeafGrower
         std::vector <osg::Vec2> _all_tex; //len(_all_tex) == len(_all_v) instead of 4 for simplicity
         std::vector <osg::Vec2> _all_tex_isp0; //the tex coords for the image in isp0
 
+    protected:
+        /*
+         * find the closest and unused pixel in the segmentation
+         * img: reference to the original image
+         * seg: reference to the segmentation
+         * (sx, sy): root, starting point of searching
+         * (x,y): input pixel
+         * (rx,ry): output
+         */
+        void closest_unused(const QImage& img, const QImage& seg, int sx, int sy, int x, int y, int& rx, int& ry);
+
     private:
 		//for finding the next non-transparent pixel
 		//inline static void next_pixel(const QImage& img, int& x, int& y);
