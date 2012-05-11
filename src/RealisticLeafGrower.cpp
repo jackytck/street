@@ -6,7 +6,6 @@
 #include "Transformer.h"
 #include <fstream>
 #include "LaserProjector.h"
-#include "SingleImagePalm.h"
 
 RealisticLeafGrower::RealisticLeafGrower(): _root(NULL), _scale(-1.0f), _grow_zone(0.286f), _radius_k(0.1f), _pedal(13), _fuzziness(0.0f), _verbose(false)
 {
@@ -574,59 +573,6 @@ void RealisticLeafGrower::grow_laser(int w, int h, std::string simple_pt, std::s
     }//end post-processing
 }
 
-void RealisticLeafGrower::closest_unused(const QImage& img, const QImage& seg, int sx, int sy, int x, int y, int& rx, int& ry)
-{
-    rx = x;
-    ry = y;
-    if(seg.isNull() || img.isNull())
-        return;
-    int w = seg.width(), h = seg.height();
-
-    //1. dijkstra from query until it find a point that is inside the segmentation and it is not used before
-    const float diag_d = 1.4142135623730951f;
-    std::vector <std::vector <bool> > visited(w, std::vector <bool> (h, false));
-    ImageNode root(sx == -1 ? x : sx, sy == -1 ? y : sy);
-    std::priority_queue<ImageNode> pq;
-    pq.push(root);
-
-    while(!pq.empty())
-    {
-        ImageNode n = pq.top();
-        pq.pop();
-        int nx = n._pos.x(), ny = n._pos.y();
-        if(nx < 0 || nx >= w || ny < 0 || ny >= h || visited[nx][ny])
-            continue;
-
-        QRgb seg_color = seg.pixel(nx, ny);
-        if(qRed(seg_color) != 0 || qGreen(seg_color) != 0 || qBlue(seg_color) != 0)
-        {
-            QRgb img_color = img.pixel(nx, ny);
-            if(qAlpha(img_color) !=0 && (qRed(img_color) != 0 || qGreen(img_color) != 0 || qBlue(img_color) != 0))
-            {
-                rx = nx;
-                ry = ny;
-                return;
-            }
-        }
-        visited[nx][ny] = true;
-        float d = n._dist;
-
-        //upwards
-        pq.push(ImageNode(nx+1, ny-1, nx, ny, d+diag_d));
-        pq.push(ImageNode(nx, ny-1, nx, ny, d+1));
-        pq.push(ImageNode(nx-1, ny-1, nx, ny, d+diag_d));
-
-        //sideways
-        pq.push(ImageNode(nx-1, ny, nx, ny, d+1));
-        pq.push(ImageNode(nx+1, ny, nx, ny, d+1));
-
-        //downwards
-        pq.push(ImageNode(nx-1, ny+1, nx, ny, d+diag_d));
-        pq.push(ImageNode(nx, ny+1, nx, ny, d+1));
-        pq.push(ImageNode(nx+1, ny+1, nx, ny, d+diag_d));
-    }
-}
-
 void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x, int root_y, std::string src_path, std::string src_seg_path, std::vector <osg::Vec3> all_v)
 {
     //printf("w(%d) h(%d) scale(%f) root(%d,%d) img(%s) seg(%s) all_v(%d)\n", w, h, scale, root_x, root_y, src_path.c_str(), src_seg_path.c_str(), int(all_v.size()));
@@ -783,25 +729,9 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                             inside_colors.push_back(blend);
                             pixel_painted++;
                         }
-                        //otherwise use the cloest and unused pixel
                         else
                         {
                             outsides.push_back(osg::Vec4(ix, iy, set_x, set_y));
-                            /*
-                            int cx, cy;
-                            if(sx == -1 || sy == -1)
-                                closest_unused(src_img, src_seg, sx, sy, ix, iy, cx, cy);//search (ix,iy) from (sx,sy) and return (cx,cy)
-                            else
-                            {
-                                cx = sx;
-                                cy = sy;
-                            }
-                            QRgb color = src_img.pixel(cx, cy);
-                            _tiled_texture.setPixel(set_x, set_y, color);
-                            pixel_painted++;
-                            sx = cx;
-                            sy = cy;
-                            */
                         }
 
                         //store the maximum number of pixels to be painted
@@ -841,15 +771,13 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                     }
                 }
             }
-            //else we will copy color from other leaf in post-processing
+            //todo: else we will copy color from other leaf in post-processing
 
             //append un-touched and fully-touched leaves for post-processing
             if(pixel_painted < max_paint_pixel * 0.95)
                 untouched.push_back(i);
             if(pixel_painted == max_paint_pixel)
                 full_touched.push_back(i);
-
-            printf("%d\n", i);
         }//end for this target leaf
 
         //debug
