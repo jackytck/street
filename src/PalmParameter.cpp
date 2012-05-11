@@ -281,9 +281,9 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     if(_gravity)
     {
         int sign = mirror ? -1 : 1;
-        int max_ang = 50;//hard-code: maximum angle of rotation under the gravity effect
+        int max_ang = 40;//hard-code: maximum angle of rotation under the gravity effect
         int noise = rand() % 30 - 15;//hard-code: degree of noise added to the rotation
-        float effect = fabs(tangent * osg::Vec3(0, 0, -1));
+        float effect = 1.0f - fabs(tangent * osg::Vec3(0, 0, -1));
         float rotate = sign * (max_ang + noise) * M_PI / 180 * effect;
         osg::Quat q(rotate, tangent);//may have minor problem at the branch tip
         ret = q * (ret - cur) + cur;
@@ -308,8 +308,14 @@ std::vector <osg::Vec3> PalmParameter::getFrames()
     float correction = len * 0.045f;//empirical
 
     unsigned int on_curve_size = _on_curve.size();
+    unsigned int keys_size = _keys.size();
     for(unsigned int i=0; i<on_curve_size; i++)
     {
+        float t = float(i) / on_curve_size * (keys_size - 1);
+        int low = floor(t);
+        if(low == 0)
+            continue;
+
         osg::Vec3 tail1 = getFrameAt(i);
         osg::Vec3 tail2 = getFrameAt(i, true);
         osg::Vec3 cur = _on_curve[i];

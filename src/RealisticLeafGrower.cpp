@@ -715,9 +715,13 @@ void RealisticLeafGrower::grow_single_palm(int w, int h, float scale, int root_x
                             b = Transformer::bilinear(px, py, qBlue(ptr00), qBlue(ptr01), qBlue(ptr10), qBlue(ptr11));
 
                             //blend source and target
-                            int br = (1.0f * r + 0.0f * qRed(leaf_color));
-                            int bg = (1.0f * g + 0.0f * qGreen(leaf_color));
-                            int bb = (1.0f * b + 0.0f * qBlue(leaf_color));
+                            int br = r, bg = g, bb = b;
+                            if(br < 20 && bg < 20 && bb < 20)
+                            {
+                                br = (0.8f * r + 0.2f * qRed(leaf_color));
+                                bg = (0.8f * g + 0.2f * qGreen(leaf_color));
+                                bb = (0.8f * b + 0.2f * qBlue(leaf_color));
+                            }
 
                             //blend or not is subject to data preference
                             QRgb blend = qRgb(br, bg, bb);
