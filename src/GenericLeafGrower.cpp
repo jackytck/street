@@ -472,6 +472,7 @@ void GenericLeafGrower::grow_palm3()
     //c. get quads and tex coords for each bezier curve
     float noise = 0.5f;
     PalmParameter pp(noise);//this class interpolate all the palm parameters
+    pp.enableGravity();
     
     for(unsigned int i=0; i<sec_pts.size(); i++)
     {
@@ -489,6 +490,9 @@ void GenericLeafGrower::grow_palm3()
             _all_v.push_back(leafs[j]);
             _all_tex.push_back(tex[j]);
         }
+
+        //if(i >= 2)
+        //    break;//debug
     }
 
     return;

@@ -1,7 +1,8 @@
 #include "PalmParameter.h"
 #include "Transformer.h"
+#include <osg/Quat>
 
-PalmParameter::PalmParameter(float noise): _noise(noise)
+PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
 {
     //generated from palm_parser.py
     _keys = std::vector <osg::Vec3> (15, osg::Vec3(0, 0, 0));
@@ -218,6 +219,11 @@ void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr
     setUpVec();
 }
 
+void PalmParameter::enableGravity(bool gravity)
+{
+    _gravity = gravity;
+}
+
 unsigned int PalmParameter::onCurveSize()
 {
     return _on_curve.size();
@@ -270,6 +276,18 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
         ret = cur + (tangent * interpolated.x() + up * interpolated.y() - side * interpolated.z()) * _scale;
     else
         ret = cur + (tangent * interpolated.x() + up * interpolated.y() + side * interpolated.z()) * _scale;
+
+    //f. add effect of gravity to target
+    if(_gravity)
+    {
+        int sign = mirror ? -1 : 1;
+        int max_ang = 45;//hard-code: maximum angle of rotation under the gravity effect
+        int noise = rand() % 30 - 15;//hard-code: degree of noise added to the rotation
+        float effect = fabs(tangent * osg::Vec3(0, 0, -1));
+        float rotate = sign * (max_ang + noise) * M_PI / 180 * effect;
+        osg::Quat q(rotate, tangent);//may have minor problem at the branch tip
+        ret = q * (ret - cur) + cur;
+    }
 
     return ret;
 }

@@ -41,6 +41,14 @@ class PalmParameter
          */
         void setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4);
 
+        /*
+         * enable the gravity
+         * the target nodes will be moved along the direction of gravity,
+         * but not parallel to the direction of its branch's tangent
+         * gravity: true to enable
+         */
+        void enableGravity(bool gravity = true);
+
         /* current size of _on_curve
          * for looping getFrameAt()
          */
@@ -104,6 +112,7 @@ class PalmParameter
         float _target_dist;//length of the target
         float _scale;//_target_dist / _keys_dist
         float _noise;//randomness of the palm leaves
+        bool _gravity;//default to false
         osg::Vec3 _up;//the up vector
 };
 
