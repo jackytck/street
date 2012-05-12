@@ -473,6 +473,24 @@ void GenericLeafGrower::grow_palm3()
     float noise = 0.5f;
     PalmParameter pp(noise);//this class interpolate all the palm parameters
     pp.enableGravity();
+
+    //d. infer a proper scale
+    std::vector <float> scale_vecs;
+    for(unsigned int i=0; i<sec_pts.size(); i++)
+    {
+        osg::Vec3 ctr_pt1 = ter;
+        osg::Vec3 ctr_pt2 = sec_pts[i];
+        osg::Vec3 ctr_pt3 = third_pts[i];
+        osg::Vec3 ctr_pt4 = forth_pts[i];
+
+        float s = pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4);
+        if(s > 0.0f)
+            scale_vecs.push_back(s);
+    }
+    sort(scale_vecs.begin(), scale_vecs.end());
+    float median_scale = -1.0f;
+    if(!scale_vecs.empty())
+        median_scale = scale_vecs[int(scale_vecs.size()/2)];
     
     for(unsigned int i=0; i<sec_pts.size(); i++)
     {
@@ -481,7 +499,7 @@ void GenericLeafGrower::grow_palm3()
         osg::Vec3 ctr_pt3 = third_pts[i];
         osg::Vec3 ctr_pt4 = forth_pts[i];
 
-        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4);
+        pp.setBezierCubic(ctr_pt1, ctr_pt2, ctr_pt3, ctr_pt4, median_scale);
         std::vector <osg::Vec3> leafs = pp.getQuads(aspect);
         std::vector <osg::Vec2> tex = pp.getTexCoords();
 

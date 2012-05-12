@@ -191,9 +191,10 @@ void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3
     setUpVec();
 }
 
-void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4)
+float PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, float scale)
 {
-    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 20;
+    float ret = scale;
+    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 25;
     //int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
     //float slop = -1.0f;
     //if(ctr4.x()!=ctr1.x())
@@ -205,18 +206,28 @@ void PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr
 
     _on_curve = Transformer::interpolate_bezier_3(ctr1, ctr2, ctr3, ctr4, steps);
 
-    _target_dist = 0.0f;
-    for(unsigned int i=0; i<_on_curve.size()-1; i++)
+    //setup scale
+    if(scale < 0)
     {
-        osg::Vec3 a = _on_curve[i];
-        osg::Vec3 b = _on_curve[i+1];
-        _target_dist += (a - b).length();
-    }
+        _target_dist = 0.0f;
+        for(unsigned int i=0; i<_on_curve.size()-1; i++)
+        {
+            osg::Vec3 a = _on_curve[i];
+            osg::Vec3 b = _on_curve[i+1];
+            _target_dist += (a - b).length();
+        }
 
-    if(_keys_dist != 0.0f && _target_dist != 0.0f)
-        _scale = _target_dist / _keys_dist * 0.50f;//hard-code: the widht of leaf
+        if(_keys_dist != 0.0f && _target_dist != 0.0f)
+        {
+            _scale = _target_dist / _keys_dist * 0.50f;//hard-code: the widht of leaf
+            ret = _scale;
+        }
+    }
+    else
+        _scale = scale;
 
     setUpVec();
+    return ret;
 }
 
 void PalmParameter::enableGravity(bool gravity)
@@ -282,7 +293,7 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     {
         int sign = mirror ? -1 : 1;
         int max_ang = 40;//hard-code: maximum angle of rotation under the gravity effect
-        int noise = rand() % 30 - 15;//hard-code: degree of noise added to the rotation
+        int noise = rand() % 20 - 10;//hard-code: degree of noise added to the rotation
         float effect = 1.0f - fabs(tangent * osg::Vec3(0, 0, -1));
         float rotate = sign * (max_ang + noise) * M_PI / 180 * effect;
         osg::Quat q(rotate, tangent);//may have minor problem at the branch tip

@@ -38,8 +38,14 @@ class PalmParameter
 
         /*
          * the cubic version
+         * ctr1: control point 1
+         * ctr2: control point 2
+         * ctr3: control point 3
+         * ctr4: control point 4
+         * scale: the ratio of (target dist : key dist)
+         * return the scale of this instance
          */
-        void setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4);
+        float setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, float scale = -1.0f);
 
         /*
          * enable the gravity
