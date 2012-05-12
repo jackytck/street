@@ -170,6 +170,34 @@ float Transformer::point_segment_dist(BDLSkeletonNode *a, BDLSkeletonNode *b, BD
     return point_segment_dist(aw, bw, cw);
 }
 
+float Transformer::point_segment_dist(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2& per)
+{
+    per = osg::Vec2(0.0f, 0.0f);
+    const float l2 = (b-a).length2();
+
+    // a == b
+    if(l2 == 0.0)
+        return (c-a).length();
+
+    // Consider the line extending the segment, parameterized as a + t (b - a).
+    // We find projection of point c onto the line.
+    // It falls where t = [(c-a) . (b-a)] / |b-a|^2
+    const float t = (c-a) * (b-a) / l2;
+
+    // Beyond the 'a' end of the segment
+    if(t < 0.0)
+        return (c-a).length();
+
+    // Beyond the 'b' end of the segment
+    if(t > 1.0)
+        return (c-b).length();
+
+    // Projection falls on the segment
+    const osg::Vec2 proj = a + (b-a)*t;
+    per = proj - c;
+    return per.length();
+}
+
 SLink Transformer::closest_segment(BDLSkeletonNode *tail, BDLSkeletonNode *query)
 {
     SLink ret;

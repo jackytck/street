@@ -40,6 +40,11 @@ class Transformer
         static float point_segment_dist(osg::Vec3 a, osg::Vec3 b, osg::Vec3 c);
         static float point_segment_dist(BDLSkeletonNode *a, BDLSkeletonNode *b, BDLSkeletonNode *c);
 
+        /* the closest distance from point c to line segment a b
+         * also return the perpendicular vector pointing from c to the line
+         */
+        static float point_segment_dist(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, osg::Vec2& per);
+
         /* find the closest segment along the 'replacement branch' from tail to tail->_prev_support from a given query point
          * tail: the tail of the replacement branch
          * query: the query point

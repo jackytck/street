@@ -140,6 +140,7 @@ void SingleImagePalm::growSkeleton()
             dqMainbranchKingdom();
             while(extractSingleSubBranch()) ;
             forceGrow();
+            smoothSkeleton();
             convertTo3D();
             _grow_valid = true;
         }
@@ -1461,7 +1462,7 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
         valid = true;
 
     //7. visualize the bezier curve
-    if(valid)
+    if(false)
     {
         std::vector <osg::Vec2> bezier = Transformer::interpolate_bezier_3_2d(_first_branching_node, second, third, four, inter);
         for(unsigned int i=0; i<bezier.size(); i++)
@@ -1577,6 +1578,66 @@ void SingleImagePalm::forceGrow()
             }
             extractSingleSubBranch(true);
         }
+    }
+}
+
+void SingleImagePalm::smoothSkeleton()
+{
+    printf("smoothSkeleton...\n");
+    if(!_skeleton || !_branching || _branching->_children.empty())
+        return;
+
+    osg::Vec2 one(_branching->_sx, _branching->_sz), two, three, four, per1, per2;
+
+    //1. starting from _branching, inspect every sub-branch
+    for(unsigned int i=0; i<_branching->_children.size(); i++)
+    {
+        std::vector <osg::Vec2> ns;
+        std::vector <BDLSkeletonNode *> ns_ptr;
+        //push all of its first children to a list
+        std::queue <BDLSkeletonNode *> Queue;
+        Queue.push(_branching->_children[i]);
+        while(!Queue.empty())
+        {
+            BDLSkeletonNode *n = Queue.front();
+            Queue.pop();
+            ns.push_back(osg::Vec2(n->_sx, n->_sz));
+            ns_ptr.push_back(n);
+            for(unsigned int j=0; j<n->_children.size(); j++)
+                Queue.push(n->_children[j]);
+        }
+        if(ns.size() < 3)//expected to be 3
+            continue;
+        if((one - four).length() == 0.0f)//expected to be 2 different points
+            continue;
+        two = ns[0];
+        three = ns[1];
+        four = ns[2];
+
+        float base = (one - four).length();
+        float diff1 = Transformer::point_segment_dist(one, four, two, per1) / base;
+        float diff2 = Transformer::point_segment_dist(one, four, three, per2) / base;
+
+        if(fabs(diff1) < 0.03f && fabs(diff2) < 0.03f)
+        {
+            //printf("straight line detected\n");
+            //printf("one(%d,%d) two(%d,%d) three(%d,%d) four(%d,%d)\n", int(one.x()), int(one.y()), int(two.x()), int(two.y()), int(three.x()), int(three.y()), int(four.x()), int(four.y())); 
+            //printf("diff1(%f) diff2(%f)\n", diff1, diff2);
+            per1.normalize();
+            per2.normalize();
+            two = two - per1 * base * 0.09f;
+            three = three - per2 * base * 0.09f;
+            ns_ptr[0]->_sx = two.x();
+            ns_ptr[0]->_sz = two.y();
+            ns_ptr[1]->_sx = three.x();
+            ns_ptr[1]->_sz = three.y();
+        }
+
+        //2. visualize each branch in green
+        int inter = (four - one).length() / 2;//hard-code: number of interpolation of bezier curve
+        std::vector <osg::Vec2> bezier = Transformer::interpolate_bezier_3_2d(one, two, three, four, inter);
+        for(unsigned int j=0; j<bezier.size(); j++)
+            airbrush(bezier[j].x(), bezier[j].y(), 5, 5, Qt::green);
     }
 }
 

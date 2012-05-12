@@ -304,6 +304,12 @@ class SingleImagePalm
         void forceGrow();
 
         /*
+         * after growing a 2d-skeleton, some branches may be too straight,
+         * this method smooths them out
+         */
+        void smoothSkeleton();
+
+        /*
          * simulate force bouncing between branches for optimizing their positions
          * min_angs: minimum angle of i-th branch (in degree)
          * max_angs: maximum angle of i-th branch (in degree)
