@@ -5,8 +5,8 @@
 PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
 {
     //generated from palm_parser.py
-    _keys = std::vector <osg::Vec3> (15, osg::Vec3(0, 0, 0));
-    _key_frames = std::vector <osg::Vec3> (15, osg::Vec3(0, 0, 0));
+    _keys = std::vector <osg::Vec3> (16, osg::Vec3(0, 0, 0));
+    _key_frames = std::vector <osg::Vec3> (16, osg::Vec3(0, 0, 0));
 
     // high V-shape
     /*
@@ -68,36 +68,38 @@ PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
 
     // flat and parallel shape
     _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
-    _keys[1] = osg::Vec3(1.948742, -0.000000, 1.697611);
+    _keys[1] = osg::Vec3(1.948741, -0.000000, 1.697611);
     _keys[2] = osg::Vec3(2.968705, 0.000001, 2.447816);
     _keys[3] = osg::Vec3(4.148567, 0.000003, 3.235168);
-    _keys[4] = osg::Vec3(5.651835, 0.000004, 3.992207);
-    _keys[5] = osg::Vec3(6.700879, 0.000006, 4.478876);
-    _keys[6] = osg::Vec3(7.801176, 0.000007, 4.826833);
-    _keys[7] = osg::Vec3(9.117768, 0.000009, 4.958492);
-    _keys[8] = osg::Vec3(10.208658, 0.000010, 4.986704);
-    _keys[9] = osg::Vec3(11.261932, 0.000013, 4.883256);
-    _keys[10] = osg::Vec3(12.390441, 0.000016, 4.610532);
-    _keys[11] = osg::Vec3(13.443714, 0.000006, 4.234361);
-    _keys[12] = osg::Vec3(14.412352, 0.000019, 3.905212);
-    _keys[13] = osg::Vec3(14.412352, 0.000019, 3.905212);
-    _keys[14] = osg::Vec3(14.412352, 0.000019, 3.905212);
+    _keys[4] = osg::Vec3(5.651835, 0.000005, 3.992207);
+    _keys[5] = osg::Vec3(6.700879, 0.000007, 4.478876);
+    _keys[6] = osg::Vec3(7.801176, 0.000008, 4.826833);
+    _keys[7] = osg::Vec3(9.117769, 0.000010, 4.958491);
+    _keys[8] = osg::Vec3(10.208659, 0.000012, 4.986703);
+    _keys[9] = osg::Vec3(11.261933, 0.000015, 4.883256);
+    _keys[10] = osg::Vec3(12.390442, 0.000019, 4.610532);
+    _keys[11] = osg::Vec3(13.443715, 0.000011, 4.234361);
+    _keys[12] = osg::Vec3(13.443715, 0.000011, 4.234361);
+    _keys[13] = osg::Vec3(14.412353, 0.000024, 3.905211);
+    _keys[14] = osg::Vec3(14.412353, 0.000024, 3.905211);
+    _keys[15] = osg::Vec3(14.412353, 0.000024, 3.905211);
 
-    _key_frames[0] = osg::Vec3(1.619085, 0.232098, 5.273793);
-    _key_frames[1] = osg::Vec3(1.834677, 0.286030, 5.180647);
-    _key_frames[2] = osg::Vec3(2.139131, 0.481281, 4.952158);
-    _key_frames[3] = osg::Vec3(2.112075, 0.522812, 4.698750);
-    _key_frames[4] = osg::Vec3(1.977981, 0.415813, 4.510448);
-    _key_frames[5] = osg::Vec3(2.379813, 0.265945, 4.307689);
-    _key_frames[6] = osg::Vec3(2.451467, 0.124078, 4.066025);
-    _key_frames[7] = osg::Vec3(2.552517, 0.386666, 4.205357);
-    _key_frames[8] = osg::Vec3(2.602466, 0.423112, 4.035241);
-    _key_frames[9] = osg::Vec3(2.753526, 0.749207, 4.125126);
-    _key_frames[10] = osg::Vec3(2.707400, 1.028262, 3.904652);
-    _key_frames[11] = osg::Vec3(2.286763, 1.124326, 3.068305);
-    _key_frames[12] = osg::Vec3(1.508535, 0.697400, 2.189299);
-    _key_frames[13] = osg::Vec3(1.554820, 0.199906, 1.322029);
-    _key_frames[14] = osg::Vec3(1.500421, -0.376643, 0.469103);
+    _key_frames[0] = osg::Vec3(1.619084, 0.041302, 5.273793);
+    _key_frames[1] = osg::Vec3(1.834677, -0.113074, 5.180647);
+    _key_frames[2] = osg::Vec3(2.180521, -0.320229, 4.950301);
+    _key_frames[3] = osg::Vec3(2.151216, -0.191323, 4.696993);
+    _key_frames[4] = osg::Vec3(1.977983, -0.072950, 4.510452);
+    _key_frames[5] = osg::Vec3(2.379810, -0.185910, 4.307692);
+    _key_frames[6] = osg::Vec3(2.451463, 0.124080, 4.066030);
+    _key_frames[7] = osg::Vec3(2.552517, 0.386665, 4.205358);
+    _key_frames[8] = osg::Vec3(2.602466, 0.423111, 4.035244);
+    _key_frames[9] = osg::Vec3(2.753524, 0.749205, 4.125128);
+    _key_frames[10] = osg::Vec3(2.707401, 1.028263, 3.904653);
+    _key_frames[11] = osg::Vec3(2.286762, 1.124327, 3.068306);
+    _key_frames[12] = osg::Vec3(2.545947, 0.695267, 2.225871);
+    _key_frames[13] = osg::Vec3(1.851467, 0.496996, 1.613931);
+    _key_frames[14] = osg::Vec3(1.903935, 0.282514, 0.705740);
+    _key_frames[15] = osg::Vec3(2.164993, 0.179209, 0.051300);
 
     setupKeyFrames();
     srand(time(NULL));
@@ -194,7 +196,7 @@ void PalmParameter::setBezierQuadratic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3
 float PalmParameter::setBezierCubic(osg::Vec3 ctr1, osg::Vec3 ctr2, osg::Vec3 ctr3, osg::Vec3 ctr4, float scale)
 {
     float ret = scale;
-    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 25;
+    int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 28;
     //int steps = ((ctr2-ctr1).length() + (ctr3-ctr2).length() + (ctr4-ctr3).length()) * 4;
     //float slop = -1.0f;
     //if(ctr4.x()!=ctr1.x())
@@ -293,11 +295,16 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     {
         int sign = mirror ? -1 : 1;
         int max_ang = 40;//hard-code: maximum angle of rotation under the gravity effect
-        int noise = rand() % 20 - 10;//hard-code: degree of noise added to the rotation
+        int noise = rand() % 20 - 15;//hard-code: degree of noise added to the rotation
         float effect = 1.0f - fabs(tangent * osg::Vec3(0, 0, -1));
         float rotate = sign * (max_ang + noise) * M_PI / 180 * effect;
         osg::Quat q(rotate, tangent);//may have minor problem at the branch tip
         ret = q * (ret - cur) + cur;
+
+        //rotate above up vector as noise
+        float noise2 = (rand() % 6 - 3) * M_PI / 180;
+        osg::Quat q2(noise2, up);
+        ret = q2 * (ret - cur) + cur;
     }
 
     return ret;
