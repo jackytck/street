@@ -1765,6 +1765,8 @@ void SingleImagePalm::convertTo3D()
     float branching_x = branching->_sx;
     std::vector <float> max_xs;
     float max_depth = -1.0f;//limit of maximum +/- depth
+    float max_depth_right = -1.0f;//limit of maximum +/- depth
+    float max_depth_left = -1.0f;//limit of maximum +/- depth
     for(unsigned int i=0; i<branching->_children.size(); i++)
     {
         BDLSkeletonNode *cur = branching->_children[i];
@@ -1773,10 +1775,12 @@ void SingleImagePalm::convertTo3D()
         while(cur)
         {
             h = cur->_sz;
-            float sx = fabs(cur->_sx - branching_x);
-            if(max_depth == -1.0f || sx > max_depth)
-                max_depth = sx;
-            if(mx == -1.0f || sx > mx)
+            float sx = cur->_sx - branching_x;
+            if(sx >= 0.0f)
+                max_depth_right = std::max(max_depth_right, sx);
+            else
+                max_depth_left = std::max(max_depth_left, -sx);
+            if(mx == -1.0f || fabs(sx) > mx)
             {
                 mx = sx;
                 mx2 = cur->_sx;
@@ -1788,6 +1792,7 @@ void SingleImagePalm::convertTo3D()
         }
         max_xs.push_back(mx2);
     }
+    max_depth = std::min(max_depth_left, max_depth_right);
     //printf("max_depth(%f) branching_x(%f)\n", max_depth, branching_x);
 
     //4. given the maximum depth, infer the range of permitting Θ_i
@@ -1800,7 +1805,8 @@ void SingleImagePalm::convertTo3D()
         float min_range2 = 3 * M_PI / 4;
         float max_range2 = 5 * M_PI / 4;
         float mx = max_xs[branch];
-        if(fabs(mx - branching_x) > max_depth * 0.2f && max_depth > 0.0f)//hard-code: don't rotate too much if it is closed to origin
+        //always pass the condition to enforce all nodes must lay within the depths
+        if(true || fabs(mx - branching_x) > max_depth * 0.2f && max_depth > 0.0f)//hard-code: don't rotate too much if it is closed to origin
         {
             min_range = atan2(-max_depth, mx - branching_x);
             max_range = atan2(max_depth, mx - branching_x);
