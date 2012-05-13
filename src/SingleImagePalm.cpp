@@ -12,7 +12,7 @@ const bool ImageNode::operator < (const ImageNode& node) const
     return !(_dist < node._dist);
 }
 
-SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _output_debug_img(false), _data_valid(false), _grow_valid(false), _img2skeleton_scale(250.0f)
+SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose(false), _output_debug_img(false), _data_valid(false), _grow_valid(false), _img2skeleton_scale(250.0f), _main_branch_radius(0.108f)
 {
     ISPLoader loader;
     loader.load(isp0);
@@ -726,6 +726,7 @@ void SingleImagePalm::lineSweep()
     int level = _root.y();
     std::vector <float> xs;
     float std = -1.0f;
+    std::vector <float> radii;//keep track of the radii of main branch for the branch mesh
 
     //1. go from root to top
     while(level >= 0 && query >= 0)
@@ -756,6 +757,8 @@ void SingleImagePalm::lineSweep()
                 mid = query + sign * sd_all;
             }
         }
+        else
+            radii.push_back((right - left) / 2.0f);
         _main_branch_locus.push_back(osg::Vec2(mid, level));
         xs.push_back(mid);
         std = Transformer::standard_deviation(xs, 500);//only consider the 500-sd
@@ -803,6 +806,13 @@ void SingleImagePalm::lineSweep()
         }
         else
             break;
+    }
+
+    //5. infer the radius of the main branch
+    if(!radii.empty())
+    {
+        sort(radii.begin(), radii.end());
+        _main_branch_radius = radii[int(radii.size() / 2)];
     }
 
     //debug
@@ -1843,13 +1853,21 @@ void SingleImagePalm::save()
     {
         std::string out_skeleton = _output_dir + "/z_skeleton";
         std::string out_isp0 = _output_dir + "/master.isp0";
+        std::string out_radius = _output_dir + "/z_radius";
         BDLSkeletonNode::save_skeleton(_blender_skeleton, out_skeleton.c_str());
 
         //file IO
+        //master.isp0
         FILE *out = fopen(out_isp0.c_str(), "w");
         fprintf(out, "%s\n", _input_img_path.c_str());
         fprintf(out, "%s\n", _input_seg_path.c_str());
         fprintf(out, "%d %d\n", int(_root.x()), int(_root.y()));
+        fclose(out);
+
+        //z_radius
+        FILE *out_r = fopen(out_radius.c_str(), "w");
+        fprintf(out_r, "%f\n", _main_branch_radius / _img2skeleton_scale);
+        fclose(out_r);
     }
     else
         printf("SingleImagePalm::save():_data_valid(%d):_grow_valid(%d) error\n", int(_data_valid), int(_grow_valid));

@@ -453,7 +453,7 @@ int main(int argc, char *argv[])
                         if(verbose)
 							printf("Root's radius is %f.\n", skeleton->_radius);
                         BDLSG2Bezier bezier(out_bezier_palm.c_str());
-                        bezier.output_palm(skeleton);
+                        bezier.output_palm(skeleton, skeleton->_radius);
                         //bezier.blender_test();
                     }
 

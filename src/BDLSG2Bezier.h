@@ -27,8 +27,9 @@ class BDLSG2Bezier
         /* convert a palm data structure into set of separated Bezier curves
          * the lower part of the data structure is the same as usual, but 
          * the upper part is a cubic Bezier curve with at least 4 nodes for each branch
+         * radius: main branch radius, other radii will be calculated automatically
          */
-        void output_palm(BDLSkeletonNode *root);
+        void output_palm(BDLSkeletonNode *root, double radius = -1.0f);
 
         /* output the format used by XiaoPeng
          * note: just print the skeleton and the raidus of each node

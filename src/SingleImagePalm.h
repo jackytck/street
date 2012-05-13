@@ -395,6 +395,7 @@ class SingleImagePalm
         bool _data_valid;
         bool _grow_valid;
         float _img2skeleton_scale;
+        float _main_branch_radius;
         std::string _isp0;
         QImage _img;
         QImage _seg;

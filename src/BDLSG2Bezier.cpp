@@ -205,7 +205,7 @@ void BDLSG2Bezier::blender_test()
     }
 }
 
-void BDLSG2Bezier::output_palm(BDLSkeletonNode *root)
+void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, double base_radius)
 {
     if(!root)
         return;
@@ -302,24 +302,55 @@ void BDLSG2Bezier::output_palm(BDLSkeletonNode *root)
 
     //d. infer palm-specific radii
     //each node of a leaf-branch has the same radius,
-    //which is equal to its total length times a constant
-    //radius of main branch is equal to the (max of all the leaf branches' radii) * 1.618
-    const double MassThicknessRatio = 0.05;
-    std::vector <double> radii;//1 radius for each branch
-    double main_branch_radius = 0.0; 
-    for(unsigned int i=0; i<sec_pts.size(); i++)
+    //which is equal to its total length times a constant k
+    std::vector <double> radii;//radius for each branch
+    if(base_radius <= 0)//fallback: base radius is not given
     {
-        osg::Vec3 ctr_pt1 = ter;
-        osg::Vec3 ctr_pt2 = sec_pts[i];
-        osg::Vec3 ctr_pt3 = third_pts[i];
-        osg::Vec3 ctr_pt4 = forth_pts[i];
+        //radius of main branch is equal to the (max of all the leaf branches' radii) * k2
+        const double MassThicknessRatio = 0.003;//hard-code: radius : length
+        double main_branch_radius = 0.0;
+        for(unsigned int i=0; i<sec_pts.size(); i++)
+        {
+            osg::Vec3 ctr_pt1 = ter;
+            osg::Vec3 ctr_pt2 = sec_pts[i];
+            osg::Vec3 ctr_pt3 = third_pts[i];
+            osg::Vec3 ctr_pt4 = forth_pts[i];
 
-        float length = (ctr_pt2-ctr_pt1).length() + (ctr_pt3-ctr_pt2).length() + (ctr_pt4-ctr_pt3).length();
-        double radius = length * MassThicknessRatio;
-        radii.push_back(radius);
-        main_branch_radius = std::max(main_branch_radius, radius);
+            float length = (ctr_pt2-ctr_pt1).length() + (ctr_pt3-ctr_pt2).length() + (ctr_pt4-ctr_pt3).length();
+            double radius = length * MassThicknessRatio;
+            radii.push_back(radius);
+            main_branch_radius = std::max(main_branch_radius, radius);
+        }
+        main_branch_radius *= 8.4253;//hard-code: base_radius : largest sub-branch
+        base_radius = main_branch_radius;
     }
-    main_branch_radius *= 3.618;
+    else
+    {
+        //sum of the cross-sectional areas of sub-branch is equal to that of the base's area
+        std::vector <double> lengths;
+        double sum_l2 = 0;
+        for(unsigned int i=0; i<sec_pts.size(); i++)
+        {
+            osg::Vec3 ctr_pt1 = ter;
+            osg::Vec3 ctr_pt2 = sec_pts[i];
+            osg::Vec3 ctr_pt3 = third_pts[i];
+            osg::Vec3 ctr_pt4 = forth_pts[i];
+            float length = (ctr_pt2-ctr_pt1).length() + (ctr_pt3-ctr_pt2).length() + (ctr_pt4-ctr_pt3).length();
+            sum_l2 += length * length;
+            lengths.push_back(length);
+        }
+        if(sum_l2 > 0)
+        {
+            double k = base_radius / pow(sum_l2, 0.5);
+            for(unsigned int i=0; i<lengths.size(); i++)
+                radii.push_back(lengths[i] * k * 0.3618);//hard-code: area conservation seems too large, so times 0.3618
+        }
+        else
+        {
+            printf("BDLSG2Bezier::output_palm():sum_l2 evaluates to zero\n");
+            return;
+        }
+    }
 
     //e. write results, total number of branches first
     fprintf(_out, "%d\n", 1 + int(sec_pts.size()));
@@ -341,7 +372,7 @@ void BDLSG2Bezier::output_palm(BDLSkeletonNode *root)
         }
         for(unsigned int i=0; i<main_branch_ctrs.size()/3; i++)
         {
-            fprintf(_out, "%f\n", main_branch_radius);
+            fprintf(_out, "%f\n", base_radius);
         }
     }
 

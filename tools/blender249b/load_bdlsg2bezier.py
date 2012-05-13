@@ -92,7 +92,7 @@ def import_bdlsg2bezier(path):
     curve = Curve.New()
     curve.setFlag(1) # set curve to 3d
     curve.setBevresol(6) # set the Curve's bevel resolution value
-    curve.setExt2(0.1) # set the Curve's ext2 value
+    curve.setExt2(1) # set the Curve's ext2 value, i.e. the bevel level, actual radius = bevel level * BezTriple's radius
 
     #parse file and append CurNurb to curve for each branch on the fly
     input = open(path, 'r')
