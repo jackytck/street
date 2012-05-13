@@ -5,8 +5,8 @@
 PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
 {
     //generated from palm_parser.py
-    _keys = std::vector <osg::Vec3> (16, osg::Vec3(0, 0, 0));
-    _key_frames = std::vector <osg::Vec3> (16, osg::Vec3(0, 0, 0));
+    _keys = std::vector <osg::Vec3> (14, osg::Vec3(0, 0, 0));
+    _key_frames = std::vector <osg::Vec3> (14, osg::Vec3(0, 0, 0));
 
     // high V-shape
     /*
@@ -67,6 +67,7 @@ PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
     */
 
     // flat and parallel shape
+    /*
     _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
     _keys[1] = osg::Vec3(1.948741, -0.000000, 1.697611);
     _keys[2] = osg::Vec3(2.968705, 0.000001, 2.447816);
@@ -100,6 +101,71 @@ PalmParameter::PalmParameter(float noise): _noise(noise), _gravity(false)
     _key_frames[13] = osg::Vec3(1.851467, 0.496996, 1.613931);
     _key_frames[14] = osg::Vec3(1.903935, 0.282514, 0.705740);
     _key_frames[15] = osg::Vec3(2.164993, 0.179209, 0.051300);
+    */
+
+    // flat + parallel + round head shape
+    /*
+    _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
+    _keys[1] = osg::Vec3(1.948739, -0.000000, 1.697609);
+    _keys[2] = osg::Vec3(2.968705, 0.000002, 2.447814);
+    _keys[3] = osg::Vec3(4.148568, 0.000005, 3.235165);
+    _keys[4] = osg::Vec3(5.651839, 0.000009, 3.992203);
+    _keys[5] = osg::Vec3(6.700884, 0.000012, 4.478871);
+    _keys[6] = osg::Vec3(7.801183, 0.000015, 4.826828);
+    _keys[7] = osg::Vec3(9.117777, 0.000017, 4.958484);
+    _keys[8] = osg::Vec3(9.117777, 0.000017, 4.958484);
+    _keys[9] = osg::Vec3(10.208667, 0.000019, 4.986695);
+    _keys[10] = osg::Vec3(11.261941, 0.000023, 4.883246);
+    _keys[11] = osg::Vec3(12.390450, 0.000029, 4.610520);
+    _keys[12] = osg::Vec3(13.443723, 0.000023, 4.234348);
+    _keys[13] = osg::Vec3(14.412360, 0.000038, 3.905196);
+
+    _key_frames[0] = osg::Vec3(1.966012, -0.829573, 5.268725);
+    _key_frames[1] = osg::Vec3(2.278292, -0.821551, 5.275563);
+    _key_frames[2] = osg::Vec3(2.451481, -0.846261, 5.111340);
+    _key_frames[3] = osg::Vec3(2.559528, -0.652321, 4.847157);
+    _key_frames[4] = osg::Vec3(2.420502, -0.665277, 4.654540);
+    _key_frames[5] = osg::Vec3(2.761193, -0.399279, 4.543908);
+    _key_frames[6] = osg::Vec3(3.052726, -0.033925, 4.423780);
+    _key_frames[7] = osg::Vec3(4.364782, -0.065473, 4.256228);
+    _key_frames[8] = osg::Vec3(2.808153, -0.037576, 4.293646);
+    _key_frames[9] = osg::Vec3(4.553224, 0.336446, 4.194273);
+    _key_frames[10] = osg::Vec3(4.648286, 0.904590, 3.994246);
+    _key_frames[11] = osg::Vec3(4.387308, 1.201336, 3.573984);
+    _key_frames[12] = osg::Vec3(3.764152, 1.035572, 2.923845);
+    _key_frames[13] = osg::Vec3(3.165639, 0.167697, -0.112111);
+    */
+
+    // downwards + parallel + round head shape
+    _keys[0] = osg::Vec3(0.883929, -0.000000, 0.761077);
+    _keys[1] = osg::Vec3(1.948739, -0.000000, 1.697608);
+    _keys[2] = osg::Vec3(2.968704, 0.000002, 2.447814);
+    _keys[3] = osg::Vec3(4.148568, 0.000005, 3.235165);
+    _keys[4] = osg::Vec3(5.651839, 0.000008, 3.992203);
+    _keys[5] = osg::Vec3(6.700885, 0.000012, 4.478873);
+    _keys[6] = osg::Vec3(7.801183, 0.000014, 4.826830);
+    _keys[7] = osg::Vec3(9.117777, 0.000016, 4.958488);
+    _keys[8] = osg::Vec3(9.117777, 0.000016, 4.958488);
+    _keys[9] = osg::Vec3(10.208667, 0.000019, 4.986700);
+    _keys[10] = osg::Vec3(11.261942, 0.000022, 4.883253);
+    _keys[11] = osg::Vec3(12.390450, 0.000028, 4.610528);
+    _keys[12] = osg::Vec3(13.443725, 0.000022, 4.234355);
+    _keys[13] = osg::Vec3(14.412363, 0.000038, 3.905203);
+
+    _key_frames[0] = osg::Vec3(2.392214, -2.119610, 5.095464);
+    _key_frames[1] = osg::Vec3(2.444726, -2.228047, 5.203313);
+    _key_frames[2] = osg::Vec3(2.840532, -2.162443, 4.941717);
+    _key_frames[3] = osg::Vec3(2.898482, -1.916741, 4.687342);
+    _key_frames[4] = osg::Vec3(2.708086, -1.570847, 4.722943);
+    _key_frames[5] = osg::Vec3(3.027918, -1.390282, 4.534034);
+    _key_frames[6] = osg::Vec3(3.205586, -1.339838, 4.400910);
+    _key_frames[7] = osg::Vec3(4.337639, -0.906544, 4.277610);
+    _key_frames[8] = osg::Vec3(3.061746, -0.994793, 4.211329);
+    _key_frames[9] = osg::Vec3(4.593148, -0.643569, 4.199039);
+    _key_frames[10] = osg::Vec3(4.687363, -0.077307, 4.006274);
+    _key_frames[11] = osg::Vec3(4.437125, 0.493707, 3.595784);
+    _key_frames[12] = osg::Vec3(3.795799, 0.628956, 2.909116);
+    _key_frames[13] = osg::Vec3(3.165640, 0.167698, -0.112114);
 
     setupKeyFrames();
     srand(time(NULL));
@@ -153,7 +219,7 @@ void PalmParameter::setUpVec()
     osg::Vec3 start = getOnCurve(0);
     osg::Vec3 mid = getOnCurve(int(n/2));
     osg::Vec3 end = getOnCurve(n-1);
-    osg::Vec3 normal = (mid - start) ^ (end - mid) ^ (end - mid);
+    osg::Vec3 normal = (end - mid) ^ ((mid - start) ^ (end - mid));
 
     //if 3 points are collinear
     if(normal.x() == 0.0f && normal.y() == 0.0f && normal.z() == 0.0f)
@@ -293,7 +359,7 @@ osg::Vec3 PalmParameter::getFrameAt(int k, bool mirror)
     //f. add effect of gravity to target
     if(_gravity)
     {
-        int sign = mirror ? -1 : 1;
+        int sign = mirror ? 1 : -1;
         int max_ang = 40;//hard-code: maximum angle of rotation under the gravity effect
         int noise = rand() % 20 - 15;//hard-code: degree of noise added to the rotation
         float effect = 1.0f - fabs(tangent * osg::Vec3(0, 0, -1));
@@ -323,7 +389,7 @@ std::vector <osg::Vec3> PalmParameter::getFrames()
         len += (_on_curve[i] - last).length();
         last = _on_curve[i];
     }
-    float correction = len * 0.045f;//empirical
+    //float correction = len * 0.045f;//empirical
 
     unsigned int on_curve_size = _on_curve.size();
     unsigned int keys_size = _keys.size();
@@ -340,9 +406,10 @@ std::vector <osg::Vec3> PalmParameter::getFrames()
 
         //to fix the misalignment problem caused by the connected mesh
         //but only apply to the second half of the branch
-        osg::Vec3 translate = cur - (tail1 + tail2)*0.5f;
-        translate.normalize();
-        translate = translate * (i / float(on_curve_size)) * correction;
+        osg::Vec3 translate = osg::Vec3(0, 0, 0);//seems unnecessary
+        //translate = cur - (tail1 + tail2)*0.5f;
+        //translate.normalize();
+        //translate = translate * (i / float(on_curve_size)) * correction;
 
         ret.push_back(cur + translate);
         ret.push_back(tail1);
