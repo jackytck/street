@@ -151,9 +151,10 @@ class SingleImagePalm
          * flood fill region
          * for inferring the connected component(s) in each bin
          * strong: true if strong connection is desired
+         * limit: population limit
          * return the populaton of this kingdom
          */
-        long long floodFillAt(int x, int y, int label, bool strong = false);
+        long long floodFillAt(int x, int y, int label, bool strong = false, int limit = 40000);
 
         /*
          * infer kingdom by finding the connected component(s) in each bin
@@ -290,6 +291,25 @@ class SingleImagePalm
         inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius, int step = 5);
 
         /*
+         * set the no fly zone for the four
+         * no 'four' should be inferred from this zone
+         * four: the skeleton node
+         * zone_radius: the radius of the zone, default to _main_branch_radius * 1.618
+         */
+        void setNoFourZone(osg::Vec2 four, int zone_radius = -1);
+
+        /*
+         * parent: parent of edge
+         * child: child of edge
+         */
+        void setNoFourZone(osg::Vec2 parent, osg::Vec2 child, int zone_radius = -1);
+
+        /*
+         * return true if the four is inside the no four zone
+         */
+        bool isInsideNoFourZone(osg::Vec2 four);
+
+        /*
          * extract a single sub-branch by letting the 4th control point be living in the farest kingdom
          * and exhaustively find out the other 2 control point
          * force: force grow a branch even its score is low
@@ -403,6 +423,7 @@ class SingleImagePalm
         osg::Vec2 _first_branching_node;
         int _first_branching_node_idx;//index to _main_branch_locus
         QImage _debug_img;//for debugging purpose only
+        QImage _four_fly_zone;//for storing the occuplied fly zone of four
         int _w;
         int _h;
         float _max_dist;//max dist from root, for visualization purpose only

@@ -54,6 +54,8 @@ SingleImagePalm::SingleImagePalm(std::string isp0, std::string output): _verbose
     _isp0 = isp0;
     _debug_img = QImage(iw, ih, QImage::Format_ARGB32);
     _debug_img.fill(0);
+    _four_fly_zone = QImage(iw, ih, QImage::Format_ARGB32);
+    _four_fly_zone.fill(0);
     _edge_map = QImage(iw, ih, QImage::Format_ARGB32);
     _edge_map.fill(0);
     _edge_field = QImage(iw, ih, QImage::Format_ARGB32);
@@ -85,10 +87,9 @@ SingleImagePalm::~SingleImagePalm()
         }
         //visualize_dijkstra();
         //visualize_bin();
-        //visualize_king();
         //visualize_linesweep();
         //visualize_branch_search_limit();
-        visualize_kingdom();
+        //visualize_king();
         //visualize_kingdom(false);
         visualize_edge(true);
         visualize_skeleton(_skeleton, true, true);
@@ -103,6 +104,8 @@ SingleImagePalm::~SingleImagePalm()
         //    _edge_map.save(QString("/tmp/debug_edge.png"), "PNG", 70);
         //if(!_edge_field.isNull())
         //    _edge_field.save(QString("/tmp/debug_edge_point.png"), "PNG", 70);
+        //if(!_four_fly_zone.isNull())
+        //    _four_fly_zone.save(QString("/tmp/debug_fly_zone.png"), "PNG", 70);
 
         printf("debug image is outputted at '%s'\n", path.c_str());
     }
@@ -138,8 +141,10 @@ void SingleImagePalm::growSkeleton()
             //inferKingAvg();
             inferKingPotential();
             dqMainbranchKingdom();
+            if(_output_debug_img)
+                visualize_kingdom();
             while(extractSingleSubBranch()) ;
-            forceGrow();
+            //forceGrow();
             smoothSkeleton();
             convertTo3D();
             _grow_valid = true;
@@ -389,7 +394,7 @@ ImageNode * SingleImagePalm::isGoodNeighbor(int x, int y, int bin)
     return ret;
 }
 
-long long SingleImagePalm::floodFillAt(int x, int y, int label, bool strong)
+long long SingleImagePalm::floodFillAt(int x, int y, int label, bool strong, int limit)
 {
     long long ret = 0;
     if(x < 0 || x >= _w || y < 0 || y >= _h)
@@ -397,19 +402,27 @@ long long SingleImagePalm::floodFillAt(int x, int y, int label, bool strong)
 
     //bfs
     int ref_bin = _nodes[x][y]._bin;
-    std::queue <ImageNode *> Queue;
-    Queue.push(&_nodes[x][y]);
-    while(!Queue.empty())
+    std::priority_queue<ImageNode> pq;
+    pq.push(_nodes[x][y]);
+    while(!pq.empty())
     {
-        ImageNode *n_p = Queue.front();
-        Queue.pop();
+        ImageNode n = pq.top();
+        pq.pop();
+
+        int nx = n._pos.x(), ny = n._pos.y();
+        ImageNode *n_p = &_nodes[nx][ny];
         if(n_p->_considered)
             continue;
 
-        int nx = n_p->_pos.x(), ny = n_p->_pos.y();
         n_p->_kingdom = label;
         n_p->_considered = true;
         ret++;
+
+        if(ret >= limit)//population limit is reached, kingdom is full now, don't add more citizen to it
+        {
+            //printf("kingdom(%d) population(%lld)\n", label, ret);
+            return ret;
+        }
 
         ImageNode *a, *b, *c, *d, *e, *f, *g, *h;
         a = isGoodNeighbor(nx-1, ny, ref_bin);//left
@@ -421,23 +434,23 @@ long long SingleImagePalm::floodFillAt(int x, int y, int label, bool strong)
         g = isGoodNeighbor(nx, ny-1, ref_bin);//up
         h = isGoodNeighbor(nx-1, ny-1, ref_bin);//up-left
         if(a)
-            Queue.push(a);
+            pq.push(*a);
         if(c)
-            Queue.push(c);
+            pq.push(*c);
         if(e)
-            Queue.push(e);
+            pq.push(*e);
         if(g)
-            Queue.push(g);
+            pq.push(*g);
         if(strong)
         {
             if(b)
-                Queue.push(b);
+                pq.push(*b);
             if(d)
-                Queue.push(d);
+                pq.push(*d);
             if(f)
-                Queue.push(f);
+                pq.push(*f);
             if(h)
-                Queue.push(h);
+                pq.push(*h);
         }
     }
     //printf("kingdom(%d) population(%lld)\n", label, ret);
@@ -475,7 +488,7 @@ void SingleImagePalm::inferKingdom()
 
             //using the bfs tree is incorrect, instead just flood fill the graph to infer the kingdom
             _max_kingdom++;
-            long long population = floodFillAt(int(n._pos.x()), int(n._pos.y()), _max_kingdom);
+            long long population = floodFillAt(int(n._pos.x()), int(n._pos.y()), _max_kingdom, false, 2000);//hard-code: population limit
             _population.push_back(population);
         }
     }
@@ -1177,7 +1190,7 @@ void SingleImagePalm::extractMainBranch2()
         }
     }
 
-    //4. build BDLSkeleton
+    //5. build BDLSkeleton
     std::vector <BDLSkeletonNode *> nodes;
     std::vector <osg::Vec2> edges;//list of <par,child>
 
@@ -1195,6 +1208,9 @@ void SingleImagePalm::extractMainBranch2()
         nodes.push_back(node);
         if(i != kings.size()-1)
             edges.push_back(osg::Vec2(i, i+1));
+
+        //set no fly zone for four
+        setNoFourZone(kings[i]);
     }
 
     for(unsigned int i=0; i<edges.size(); i++)
@@ -1208,6 +1224,9 @@ void SingleImagePalm::extractMainBranch2()
             nodes[parent]->_children.push_back(nodes[child]);
             nodes[child]->_prev = nodes[parent];
         }
+
+        //set no fly zone for four
+        setNoFourZone(kings[parent], kings[child]);
     }
 
     if(!nodes.empty())
@@ -1386,6 +1405,47 @@ std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r,
     return ret;
 }
 
+void SingleImagePalm::setNoFourZone(osg::Vec2 four, int zone_radius)
+{
+    int x = four.x(), y = four.y();
+    if(zone_radius < 0)
+        //zone_radius = _main_branch_radius * 2.618f;
+        zone_radius = _main_branch_radius * 4.236f;
+
+    if(x >= 0 && x < _w && y >= 0 && y < _h)
+    {
+        airbrush(x, y, zone_radius, zone_radius, Qt::white, &_four_fly_zone);
+        //airbrush(x, y, zone_radius, zone_radius, Qt::white);
+    }
+}
+
+void SingleImagePalm::setNoFourZone(osg::Vec2 parent, osg::Vec2 child, int zone_radius)
+{
+    int px = parent.x(), py = parent.y();
+    int cx = child.x(), cy = child.y();
+    if(zone_radius < 0)
+        //zone_radius = _main_branch_radius * 2.618f;
+        zone_radius = _main_branch_radius * 4.236f;
+
+    if(px >= 0 && px < _w && py >= 0 && py < _h && cx >= 0 && cx < _w && cy >= 0 && cy < _h)
+        drawLine(px, py, cx, cy, Qt::white, zone_radius, &_four_fly_zone);
+        //drawLine(px, py, cx, cy, Qt::white, zone_radius);
+}
+
+bool SingleImagePalm::isInsideNoFourZone(osg::Vec2 four)
+{
+    bool ret = false;
+    int x = four.x(), y = four.y();
+    if(!_four_fly_zone.isNull() && x >= 0 && x < _w && y >= 0 && y < _h)
+    {
+        QRgb c = _four_fly_zone.pixel(x, y);
+        //if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
+        if(qAlpha(c) != 0) //if not fully transparent
+            ret = true;
+    }
+    return ret;
+}
+
 bool SingleImagePalm::extractSingleSubBranch(bool force)
 {
     printf("extractSingleSubBranch...\n");
@@ -1398,7 +1458,7 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
     for(int i=_kingdom_states.size()-1; i>=0; i--)
         if(_kingdom_states[i])
         {
-            if(_population[i] < 500)//hard-code: ignore all kindoms that have population less than 1000
+            if(_population[i] < 1500)//hard-code: ignore all kindoms that have population less than 1500
             {
                 _kingdom_states[i] = false;
                 continue;
@@ -1412,6 +1472,12 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
 
     //2. pick the best 4-th control point
     osg::Vec2 four = _kings[picked];
+
+    if(isInsideNoFourZone(four))
+    {
+        _kingdom_states[picked] = false;
+        return true;//loop back again to this method
+    }
 
     //3. get a list of kingdom from 1-st and 4-th control points
     std::vector <int> first_round_can = overlappedKingdom(four);
@@ -1429,8 +1495,8 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
 
     //5. wiggle the two middle points to get the best path
     int inter = (four - _first_branching_node).length() / 2;//hard-code: number of interpolation of bezier curve
-    std::vector <osg::Vec2> zone2 = circularZone(second, 50);//hard-code: radius and step of wiggling zone
-    std::vector <osg::Vec2> zone3 = circularZone(third, 50);//hard-code: radius and step of wiggling zone
+    std::vector <osg::Vec2> zone2 = circularZone(second, 100, 10);//hard-code: radius and step of wiggling zone
+    std::vector <osg::Vec2> zone3 = circularZone(third, 100, 10);//hard-code: radius and step of wiggling zone
     float max_score = -1.0f;
     long long cnt = 0;
     for(unsigned int i=0; i<zone2.size(); i++)
@@ -1461,8 +1527,8 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
             }
 
             //debug
-            //airbrush(w2.x(), w2.y(), 1, 1, Qt::white);
-            //airbrush(w3.x(), w3.y(), 1, 1, Qt::white);
+            //airbrush(w2.x(), w2.y(), 3, 3, Qt::white);
+            //airbrush(w3.x(), w3.y(), 3, 3, Qt::white);
             //printf("score(%f)\n", score);
         }
 
@@ -1473,8 +1539,13 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
     bool valid = true;
     if(max_score < -500 && _branch_id > 4)//hard-code: lowest acceptable score, and the first four branch must pass the test
         valid = false;
-    if(force)
+    if(true || force)//pass all case now
         valid = true;
+
+    /*
+    bool valid = true;
+    int inter = 0;
+    */
 
     //7. visualize the bezier curve
     if(false)
@@ -1498,6 +1569,12 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
         new_nodes.push_back(second);
         new_nodes.push_back(third);
         new_nodes.push_back(four);
+
+        //set new no fly zone for four
+        setNoFourZone(second);
+        setNoFourZone(third);
+        setNoFourZone(four);
+
         for(unsigned int i=0; i<new_nodes.size(); i++)
         {
             //in image space, i.e. origin is left-top corner
