@@ -88,7 +88,7 @@ SingleImagePalm::~SingleImagePalm()
         //visualize_king();
         //visualize_linesweep();
         //visualize_branch_search_limit();
-        //visualize_kingdom();
+        visualize_kingdom();
         //visualize_kingdom(false);
         visualize_edge(true);
         visualize_skeleton(_skeleton, true, true);
@@ -1145,9 +1145,11 @@ void SingleImagePalm::extractMainBranch2()
     {
         osg::Vec2 v = _main_branch_locus[i];
         float d = (v - _root).length();
+        //float d = fabs(v.y() - _root.y());
         int box_id = floor((d - 0.5 * box_h) / box_h) + 1;
+        //printf("box_h(%f) d(%f) box_id(%d)\n", box_h, d, box_id);
 
-        if(box_id > 0 && box_id < no_box)
+        if(box_id >= 0 && box_id < no_box)
             boxes[box_id].push_back(v);
     }
     //terminal nodes
@@ -1185,7 +1187,10 @@ void SingleImagePalm::extractMainBranch2()
         BDLSkeletonNode *node = new BDLSkeletonNode;
         node->_sx = kings[i].x();
         node->_sy = 0.0f;
-        node->_sz = kings[i].y();
+        if(i == 0)
+            node->_sz = _root.y();//dun modify root's original y
+        else
+            node->_sz = kings[i].y();
 
         nodes.push_back(node);
         if(i != kings.size()-1)
@@ -1393,7 +1398,7 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
     for(int i=_kingdom_states.size()-1; i>=0; i--)
         if(_kingdom_states[i])
         {
-            if(_population[i] < 2000)//hard-code: ignore all kindoms that have population less than 1000
+            if(_population[i] < 500)//hard-code: ignore all kindoms that have population less than 1000
             {
                 _kingdom_states[i] = false;
                 continue;
