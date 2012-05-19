@@ -1385,7 +1385,7 @@ float SingleImagePalm::computePathScore(osg::Vec2 a, osg::Vec2 b, osg::Vec2 c, o
     return ret;
 }
 
-std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r, int step)
+std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r, int step, bool strict)
 {
     std::vector <osg::Vec2> ret;
     if(step <= 0)
@@ -1394,8 +1394,10 @@ std::vector <osg::Vec2> SingleImagePalm::circularZone(osg::Vec2 center, float r,
     for(int i=x-r; i<=x+r; i+=step)
         for(int j=y-r; j<=y+r; j+=step)
         {
-            //if(i < 0 || i >= _w || j < 0 || j >= _h || !isInside(i, j))//more restricted, must be inside segmentation
             if(i < 0 || i >= _w || j < 0 || j >= _h)
+                continue;
+
+            if(strict && !isInside(i, j))//more restricted, must be inside segmentation
                 continue;
 
             float d = pow((i-x)*(i-x) + (j-y)*(j-y), 0.5);
@@ -1438,10 +1440,18 @@ bool SingleImagePalm::isInsideNoFourZone(osg::Vec2 four)
     int x = four.x(), y = four.y();
     if(!_four_fly_zone.isNull() && x >= 0 && x < _w && y >= 0 && y < _h)
     {
-        QRgb c = _four_fly_zone.pixel(x, y);
-        //if(qRed(c) != 0 || qGreen(c) != 0 || qBlue(c) != 0) // if not fully black
-        if(qAlpha(c) != 0) //if not fully transparent
-            ret = true;
+        std::vector <osg::Vec2> zone = circularZone(four, 15, 1);
+        for(unsigned int i=0; i<zone.size(); i++)
+        {
+            osg::Vec2 probe = zone[i];
+            int px = probe.x(), py = probe.y();
+            QRgb c = _four_fly_zone.pixel(px, py);
+            if(qAlpha(c) != 0) //if not fully transparent
+            {
+                ret = true;
+                break;
+            }
+        }
     }
     return ret;
 }
@@ -1497,33 +1507,38 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
     int inter = (four - _first_branching_node).length() / 2;//hard-code: number of interpolation of bezier curve
     std::vector <osg::Vec2> zone2 = circularZone(second, 100, 10);//hard-code: radius and step of wiggling zone
     std::vector <osg::Vec2> zone3 = circularZone(third, 100, 10);//hard-code: radius and step of wiggling zone
+    std::vector <osg::Vec2> zone4 = circularZone(four, 40, 20, true);//hard-code: radius and step of wiggling zone
+    //printf("zone2(%d) zone3(%d) zone4(%d)\n", int(zone2.size()), int(zone3.size()), int(zone4.size()));
     float max_score = -1.0f;
     long long cnt = 0;
     for(unsigned int i=0; i<zone2.size(); i++)
         for(unsigned int j=0; j<zone3.size(); j++)
+            for(unsigned int k=0; k<zone4.size(); k++)
         {
             osg::Vec2 w2 = zone2[i];
             osg::Vec2 w3 = zone3[j];
+            osg::Vec2 w4 = zone4[k];
 
             //check orientations
             if(!isWellOriented(w3, w2, _first_branching_node))
                 continue;
-            if(!isWellOriented(four, w3, w2))
+            if(!isWellOriented(w4, w3, w2))
                 continue;
             //check distance (sometimes 2nd is further away from 3rd)
             if((w2-_first_branching_node).length() >= (w3-_first_branching_node).length())
                 continue;
             //check if all lay on one side (sometimes one of them is mis-regarded as on the other side)
-            if((four.x() > _first_branching_node.x() && w2.x() > w3.x()) || (four.x() < _first_branching_node.x() && w2.x() < w3.x()))
+            if((w4.x() > _first_branching_node.x() && w2.x() > w3.x()) || (w4.x() < _first_branching_node.x() && w2.x() < w3.x()))
                 continue;
 
             cnt++;
-            float score = computePathScore(_first_branching_node, w2, w3, four, std::min(500, inter));//hard-code: limit the max ops
+            float score = computePathScore(_first_branching_node, w2, w3, w4, std::min(500, inter));//hard-code: limit the max ops
             if(max_score == -1.0f || score > max_score)
             {
                 max_score = score;
                 second = w2;
                 third = w3;
+                four = w4;
             }
 
             //debug

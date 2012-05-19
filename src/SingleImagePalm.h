@@ -287,8 +287,9 @@ class SingleImagePalm
          * center: center of the zone
          * radius: radius of the zone
          * step: separation between two points in zone
+         * strict: true to restrict to segmentation points only
          */
-        inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius, int step = 5);
+        inline std::vector <osg::Vec2> circularZone(osg::Vec2 center, float radius, int step = 5, bool strict = false);
 
         /*
          * set the no fly zone for the four
