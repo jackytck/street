@@ -1210,7 +1210,10 @@ void SingleImagePalm::extractMainBranch2()
             edges.push_back(osg::Vec2(i, i+1));
 
         //set no fly zone for four
-        setNoFourZone(kings[i]);
+        if(i == 0)
+            setNoFourZone(kings[i], _main_branch_radius * 10);
+        else
+            setNoFourZone(kings[i]);
     }
 
     for(unsigned int i=0; i<edges.size(); i++)
@@ -1527,8 +1530,14 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
             //check distance (sometimes 2nd is further away from 3rd)
             if((w2-_first_branching_node).length() >= (w3-_first_branching_node).length())
                 continue;
-            //check if all lay on one side (sometimes one of them is mis-regarded as on the other side)
+            //check if 2 and 3 are properly placed (sometimes one of them is mis-regarded as on the other side)
             if((w4.x() > _first_branching_node.x() && w2.x() > w3.x()) || (w4.x() < _first_branching_node.x() && w2.x() < w3.x()))
+                continue;
+            //impose that every node is on one side only
+            if(!((w2.x() > _first_branching_node.x() && w3.x() > _first_branching_node.x() && w4.x() > _first_branching_node.x()) || (w2.x() < _first_branching_node.x() && w3.x() < _first_branching_node.x() && w4.x() < _first_branching_node.x())))
+                continue;
+            //enforce all the nodes are increasing
+            if(!((w4.x() >= w3.x() && w3.x() >= w2.x() && w2.x() >= _first_branching_node.x()) || (w4.x() <= w3.x() && w3.x() <= w2.x() && w2.x() <= _first_branching_node.x())))
                 continue;
 
             cnt++;
@@ -1937,15 +1946,57 @@ void SingleImagePalm::convertTo3D()
     {
         int branch = i;
         float best_ang = best_angs[branch] * M_PI / 180;
+        float error = 1.0f;
+        if(fabs(best_angs[branch] - 90.0f) < error || fabs(best_angs[branch] + 90.0f) < error || fabs(best_angs[branch] - 270.0f) < error)
+            best_ang += 2 * M_PI / 180;
         BDLSkeletonNode *cur = branching->_children[branch];
+        bool all_in_one_side = true;
+        int side = -234;
         while(cur)
         {
-            cur->_sy = (cur->_sx - branching_x) * tan(best_ang);
-            //printf("branch(%d) depth(%f)\n", branch, cur->_sy);
+            if(cur->_sx - branching_x > 0)
+            {
+                if(side == -234)
+                    side = 1;
+                else
+                {
+                    if(side != 1)
+                    {
+                        all_in_one_side = false;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                if(side == -234)
+                    side = -1;
+                else
+                {
+                    if(side != -1)
+                    {
+                        all_in_one_side = false;
+                        break;
+                    }
+                }
+            }
             if(cur->_children.empty())
                 cur = NULL;
             else
                 cur = cur->_children[0];
+        }
+        if(all_in_one_side)//only add depth to 'all in one side' branch
+        {
+            cur = branching->_children[branch];
+            while(cur)
+            {
+                cur->_sy = (cur->_sx - branching_x) * tan(best_ang);
+                //printf("branch(%d) depth(%f)\n", branch, cur->_sy);
+                if(cur->_children.empty())
+                    cur = NULL;
+                else
+                    cur = cur->_children[0];
+            }
         }
     }
 }
