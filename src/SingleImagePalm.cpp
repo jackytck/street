@@ -1514,7 +1514,7 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
     //5. wiggle the two middle points to get the best path
     int inter = (four - _first_branching_node).length() / 2;//hard-code: number of interpolation of bezier curve
     float max_score = -1.0f;
-    if(false)//set to false for fast debugging
+    if(true)//set to false for fast debugging
     {
         std::vector <osg::Vec2> zone2 = circularZone(second, 100, 10);//hard-code: radius and step of wiggling zone
         std::vector <osg::Vec2> zone3 = circularZone(third, 100, 10);//hard-code: radius and step of wiggling zone
@@ -2066,6 +2066,7 @@ void SingleImagePalm::save()
                 cur = cur->_prev;
             }
             float last_r = -1.0f;
+            fprintf(out_r, "%d\n", int(ows.size()));
             for(int i=ows.size()-1; i>=0; i--)
             {
                 int l = levels[i];
@@ -2088,7 +2089,10 @@ void SingleImagePalm::save()
             }
         }
         else
+        {
             fprintf(out_r, "%f\n", _main_branch_radius / _img2skeleton_scale);
+            printf("SingleImagePalm::save() error\n");
+        }
         fclose(out_r);
     }
     else

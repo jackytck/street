@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
     //single image palm
     bool is_single_img_palm = false;
     std::string out_palm_dir("");
+    std::string in_palm_radius("");
 
 	//outputs
 	std::string out_bdlsg(""), out_bezier(""), out_bezier_palm(""), out_xiao(""), out_cache(""), out_leaf(""), out_generic_leaf(""), out_realistic_leaf("");
@@ -98,6 +99,7 @@ int main(int argc, char *argv[])
 		("output-bezier-palm", po::value <std::string>(&out_bezier_palm), "Output palm as Blender's BezierTriple(s)")
 		("output-xiao", po::value <std::string>(&out_xiao), "Output as XiaoPeng obj format")
 		("output-palm-dir", po::value <std::string>(&out_palm_dir), "The palm directory to be outputted from")
+		("input-palm-radii", po::value <std::string>(&in_palm_radius), "The palm's main branch radii")
 		("input-bdlsg,G", po::value <std::string>(&in_bdlsg), "Input path of BDLSG for conversion")
 		("input_leaf,E", po::value <std::string>(&in_eleaf), "Input path of (Blender edited) leaves")
 		("leaf,l", po::value <std::string>(&out_leaf), "Output billboard leaf")
@@ -312,6 +314,38 @@ int main(int argc, char *argv[])
             BDLSkeletonNode::delete_this(skeleton);
 			goto Break;
         }
+        //for growing single palm mesh with accurate branch radii
+        if(is_single_img_palm && !out_bezier_palm.empty() && !in_bdlsg.empty() && !in_palm_radius.empty())
+        {
+            BDLSkeletonLoader loader;
+            loader.load_file(QString(in_bdlsg.c_str()));
+            BDLSkeletonNode *skeleton = loader.construct_bdl_skeleton_tree();
+            if(skeleton)
+            {
+                std::ifstream fs(in_palm_radius.c_str());
+                std::string s;
+
+                getline(fs, s);
+                int num_of_node;
+                std::vector <float> radii;
+                sscanf(s.c_str(), "%d\n", &num_of_node);
+                for(int i=0; i<num_of_node; i++)
+                {
+                    float r;
+                    getline(fs, s);
+                    sscanf(s.c_str(), "%f\n", &r);
+                    radii.push_back(r);
+                }
+
+                if(verbose)
+                    for(unsigned int i=0; i<radii.size(); i++)
+                        printf("Branch(%d) radius is %f.\n", int(i), radii[i]);
+                BDLSG2Bezier bezier(out_bezier_palm.c_str());
+                bezier.output_palm(skeleton, radii);
+            }
+            BDLSkeletonNode::delete_this(skeleton);
+			goto Break;
+        }
 
 		//generation
 		if(!library.empty() && !initial.empty() && !isp0.empty() && 
@@ -450,10 +484,12 @@ int main(int argc, char *argv[])
 
                     if(!out_bezier_palm.empty())
                     {
+                        std::vector <float> radii;
+                        radii.push_back(skeleton->_radius);
                         if(verbose)
 							printf("Root's radius is %f.\n", skeleton->_radius);
                         BDLSG2Bezier bezier(out_bezier_palm.c_str());
-                        bezier.output_palm(skeleton, skeleton->_radius);
+                        bezier.output_palm(skeleton, radii);
                         //bezier.blender_test();
                     }
 

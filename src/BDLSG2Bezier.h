@@ -29,7 +29,7 @@ class BDLSG2Bezier
          * the upper part is a cubic Bezier curve with at least 4 nodes for each branch
          * radius: main branch radius, other radii will be calculated automatically
          */
-        void output_palm(BDLSkeletonNode *root, double radius = -1.0f);
+        void output_palm(BDLSkeletonNode *root, std::vector <float> radii);
 
         /* output the format used by XiaoPeng
          * note: just print the skeleton and the raidus of each node

@@ -205,7 +205,7 @@ void BDLSG2Bezier::blender_test()
     }
 }
 
-void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, double base_radius)
+void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, std::vector <float> in_radii)
 {
     if(!root)
         return;
@@ -304,7 +304,8 @@ void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, double base_radius)
     //each node of a leaf-branch has the same radius,
     //which is equal to its total length times a constant k
     std::vector <double> radii;//radius for each branch
-    if(base_radius <= 0)//fallback: base radius is not given
+    float base_radius;
+    if(in_radii.empty())//fallback: base radius is not given
     {
         //radius of main branch is equal to the (max of all the leaf branches' radii) * k2
         const double MassThicknessRatio = 0.003;//hard-code: radius : length
@@ -326,6 +327,9 @@ void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, double base_radius)
     }
     else
     {
+        std::vector <float> in_radii_sorted = in_radii;
+        sort(in_radii_sorted.begin(), in_radii_sorted.end());
+        base_radius = in_radii_sorted[int(in_radii_sorted.size()/3)];
         //sum of the cross-sectional areas of sub-branch is equal to that of the base's area
         std::vector <double> lengths;
         double sum_l2 = 0;
@@ -370,9 +374,19 @@ void BDLSG2Bezier::output_palm(BDLSkeletonNode *root, double base_radius)
 
             fprintf(_out, "%f %f %f %f %f %f %f %f %f\n", a.x(), a.y(), a.z(), b.x(), b.y(), b.z(), c.x(), c.y(), c.z());
         }
-        for(unsigned int i=0; i<main_branch_ctrs.size()/3; i++)
+        if(main_branch_ctrs.size()/3 == in_radii.size())
         {
-            fprintf(_out, "%f\n", base_radius);
+            for(unsigned int i=0; i<main_branch_ctrs.size()/3; i++)
+            {
+                fprintf(_out, "%f\n", in_radii[i]);
+            }
+        }
+        else//size mis-match
+        {
+            for(unsigned int i=0; i<main_branch_ctrs.size()/3; i++)
+            {
+                fprintf(_out, "%f\n", base_radius);
+            }
         }
     }
 
