@@ -740,6 +740,7 @@ void SingleImagePalm::lineSweep()
     std::vector <float> xs;
     float std = -1.0f;
     std::vector <float> radii;//keep track of the radii of main branch for the branch mesh
+    std::vector <int> radii_levels;//keep track of the levels of radii
 
     //1. go from root to top
     while(level >= 0 && query >= 0)
@@ -770,8 +771,8 @@ void SingleImagePalm::lineSweep()
                 mid = query + sign * sd_all;
             }
         }
-        else
-            radii.push_back((right - left) / 2.0f);
+        radii.push_back((right - left) / 2.0f);
+        radii_levels.push_back(level);
         _main_branch_locus.push_back(osg::Vec2(mid, level));
         xs.push_back(mid);
         std = Transformer::standard_deviation(xs, 500);//only consider the 500-sd
@@ -824,6 +825,8 @@ void SingleImagePalm::lineSweep()
     //5. infer the radius of the main branch
     if(!radii.empty())
     {
+        _main_branch_radii = radii;
+        _main_branch_radius_levels = radii_levels;
         sort(radii.begin(), radii.end());
         _main_branch_radius = radii[int(radii.size() / 2)];
     }
@@ -831,6 +834,8 @@ void SingleImagePalm::lineSweep()
     //debug
     //for(unsigned int i=0; i<_main_branch_locus.size(); i++)
     //    printf("(%d,%d)\n", int(_main_branch_locus[i].x()), int(_main_branch_locus[i].y()));
+    //for(unsigned int i=0; i<_main_branch_radii.size(); i++)
+    //    printf("level: %d -> %.02f\n", _main_branch_radius_levels[i], _main_branch_radii[i]);
 }
 
 long long SingleImagePalm::detectBranchingConvolution(int x, int y)
@@ -1508,56 +1513,59 @@ bool SingleImagePalm::extractSingleSubBranch(bool force)
 
     //5. wiggle the two middle points to get the best path
     int inter = (four - _first_branching_node).length() / 2;//hard-code: number of interpolation of bezier curve
-    std::vector <osg::Vec2> zone2 = circularZone(second, 100, 10);//hard-code: radius and step of wiggling zone
-    std::vector <osg::Vec2> zone3 = circularZone(third, 100, 10);//hard-code: radius and step of wiggling zone
-    std::vector <osg::Vec2> zone4 = circularZone(four, 40, 20, true);//hard-code: radius and step of wiggling zone
-    //printf("zone2(%d) zone3(%d) zone4(%d)\n", int(zone2.size()), int(zone3.size()), int(zone4.size()));
     float max_score = -1.0f;
-    long long cnt = 0;
-    for(unsigned int i=0; i<zone2.size(); i++)
-        for(unsigned int j=0; j<zone3.size(); j++)
-            for(unsigned int k=0; k<zone4.size(); k++)
-        {
-            osg::Vec2 w2 = zone2[i];
-            osg::Vec2 w3 = zone3[j];
-            osg::Vec2 w4 = zone4[k];
-
-            //check orientations
-            if(!isWellOriented(w3, w2, _first_branching_node))
-                continue;
-            if(!isWellOriented(w4, w3, w2))
-                continue;
-            //check distance (sometimes 2nd is further away from 3rd)
-            if((w2-_first_branching_node).length() >= (w3-_first_branching_node).length())
-                continue;
-            //check if 2 and 3 are properly placed (sometimes one of them is mis-regarded as on the other side)
-            if((w4.x() > _first_branching_node.x() && w2.x() > w3.x()) || (w4.x() < _first_branching_node.x() && w2.x() < w3.x()))
-                continue;
-            //impose that every node is on one side only
-            if(!((w2.x() > _first_branching_node.x() && w3.x() > _first_branching_node.x() && w4.x() > _first_branching_node.x()) || (w2.x() < _first_branching_node.x() && w3.x() < _first_branching_node.x() && w4.x() < _first_branching_node.x())))
-                continue;
-            //enforce all the nodes are increasing
-            if(!((w4.x() >= w3.x() && w3.x() >= w2.x() && w2.x() >= _first_branching_node.x()) || (w4.x() <= w3.x() && w3.x() <= w2.x() && w2.x() <= _first_branching_node.x())))
-                continue;
-
-            cnt++;
-            float score = computePathScore(_first_branching_node, w2, w3, w4, std::min(500, inter));//hard-code: limit the max ops
-            if(max_score == -1.0f || score > max_score)
+    if(false)//set to false for fast debugging
+    {
+        std::vector <osg::Vec2> zone2 = circularZone(second, 100, 10);//hard-code: radius and step of wiggling zone
+        std::vector <osg::Vec2> zone3 = circularZone(third, 100, 10);//hard-code: radius and step of wiggling zone
+        std::vector <osg::Vec2> zone4 = circularZone(four, 40, 20, true);//hard-code: radius and step of wiggling zone
+        //printf("zone2(%d) zone3(%d) zone4(%d)\n", int(zone2.size()), int(zone3.size()), int(zone4.size()));
+        long long cnt = 0;
+        for(unsigned int i=0; i<zone2.size(); i++)
+            for(unsigned int j=0; j<zone3.size(); j++)
+                for(unsigned int k=0; k<zone4.size(); k++)
             {
-                max_score = score;
-                second = w2;
-                third = w3;
-                four = w4;
+                osg::Vec2 w2 = zone2[i];
+                osg::Vec2 w3 = zone3[j];
+                osg::Vec2 w4 = zone4[k];
+
+                //check orientations
+                if(!isWellOriented(w3, w2, _first_branching_node))
+                    continue;
+                if(!isWellOriented(w4, w3, w2))
+                    continue;
+                //check distance (sometimes 2nd is further away from 3rd)
+                if((w2-_first_branching_node).length() >= (w3-_first_branching_node).length())
+                    continue;
+                //check if 2 and 3 are properly placed (sometimes one of them is mis-regarded as on the other side)
+                if((w4.x() > _first_branching_node.x() && w2.x() > w3.x()) || (w4.x() < _first_branching_node.x() && w2.x() < w3.x()))
+                    continue;
+                //impose that every node is on one side only
+                if(!((w2.x() > _first_branching_node.x() && w3.x() > _first_branching_node.x() && w4.x() > _first_branching_node.x()) || (w2.x() < _first_branching_node.x() && w3.x() < _first_branching_node.x() && w4.x() < _first_branching_node.x())))
+                    continue;
+                //enforce all the nodes are increasing
+                if(!((w4.x() >= w3.x() && w3.x() >= w2.x() && w2.x() >= _first_branching_node.x()) || (w4.x() <= w3.x() && w3.x() <= w2.x() && w2.x() <= _first_branching_node.x())))
+                    continue;
+
+                cnt++;
+                float score = computePathScore(_first_branching_node, w2, w3, w4, std::min(500, inter));//hard-code: limit the max ops
+                if(max_score == -1.0f || score > max_score)
+                {
+                    max_score = score;
+                    second = w2;
+                    third = w3;
+                    four = w4;
+                }
+
+                //debug
+                //airbrush(w2.x(), w2.y(), 3, 3, Qt::white);
+                //airbrush(w3.x(), w3.y(), 3, 3, Qt::white);
+                //printf("score(%f)\n", score);
             }
 
-            //debug
-            //airbrush(w2.x(), w2.y(), 3, 3, Qt::white);
-            //airbrush(w3.x(), w3.y(), 3, 3, Qt::white);
-            //printf("score(%f)\n", score);
-        }
-
-    printf("ops(%lld)\n", cnt * inter);
-    printf("max score(%f)\n", max_score);
+        printf("ops(%lld)\n", cnt * inter);
+        printf("max score(%f)\n", max_score);
+    }
 
     //6. check if the score is too low, which indicates a invalid branch
     bool valid = true;
@@ -2001,6 +2009,27 @@ void SingleImagePalm::convertTo3D()
     }
 }
 
+float SingleImagePalm::averageBranchRadius(int level, int range)
+{
+    float ret = _main_branch_radius;
+    long long sum = 0, cnt = 0;
+    for(unsigned int i=0; i<_main_branch_radii.size(); i++)
+    {
+        int l = _main_branch_radius_levels[i];
+        int diff = abs(l - level);
+        if(diff <= range)
+        {
+            sum += _main_branch_radii[i];
+            cnt++;
+        }
+    }
+    if(cnt > 0)
+        ret = sum / float(cnt);
+
+    //printf("averageBranchRadius(%f)\n", ret);
+    return ret;
+}
+
 void SingleImagePalm::save()
 {
     if(_data_valid && _grow_valid)
@@ -2020,7 +2049,46 @@ void SingleImagePalm::save()
 
         //z_radius
         FILE *out_r = fopen(out_radius.c_str(), "w");
-        fprintf(out_r, "%f\n", _main_branch_radius / _img2skeleton_scale);
+        if(_branching && !_main_branch_radii.empty())
+        {
+            std::vector <float> ows;
+            std::vector <int> levels;
+            BDLSkeletonNode *cur = _branching;
+            while(cur)
+            {
+                int qy = cur->_sz;
+                float w = averageBranchRadius(qy, 200);
+                ows.push_back(w);
+                levels.push_back(qy);
+
+                //airbrush(cur->_sx, qy, 2*w, 2*w, Qt::white);
+                //printf("(%d,%d) -> %.02f\n", int(cur->_sx), qy, w);
+                cur = cur->_prev;
+            }
+            float last_r = -1.0f;
+            for(int i=ows.size()-1; i>=0; i--)
+            {
+                int l = levels[i];
+                if(l > _lower_foliage_y)
+                {
+                    fprintf(out_r, "%f\n", ows[i] / _img2skeleton_scale);
+                    last_r = ows[i];
+                }
+                else
+                {
+                    if(last_r > 0)
+                    {
+                        float cur_r = last_r * 0.9f;
+                        fprintf(out_r, "%f\n", cur_r / _img2skeleton_scale);
+                        last_r = cur_r;
+                    }
+                    else
+                        fprintf(out_r, "%f\n", _main_branch_radius / _img2skeleton_scale);
+                }
+            }
+        }
+        else
+            fprintf(out_r, "%f\n", _main_branch_radius / _img2skeleton_scale);
         fclose(out_r);
     }
     else
@@ -2149,6 +2217,8 @@ void SingleImagePalm::visualize_linesweep()
                 cs = 0;
             int s = 2 + (cs / float(_max_convolute_score)) * 8;
             airbrush(n.x(), n.y(), s, s, Qt::black);
+            //if(n.y() > (_lower_foliage_y + _higher_foliage_y) / 2)
+            //    airbrush(n.x(), n.y(), _main_branch_radii[i] * 2, _main_branch_radii[i] * 2, Qt::black);
         }
 
         airbrush(_first_branching_node.x(), _first_branching_node.y());

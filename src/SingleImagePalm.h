@@ -347,6 +347,13 @@ class SingleImagePalm
         void convertTo3D();
 
         /*
+         * find the average main branch radius around a given query level
+         * level: query level
+         * range: widths from +/- range of the level will be averaged
+         */
+        float averageBranchRadius(int level, int range);
+
+        /*
          * ### Debug Visualizations ###
          */
 
@@ -417,6 +424,8 @@ class SingleImagePalm
         bool _grow_valid;
         float _img2skeleton_scale;
         float _main_branch_radius;
+        std::vector <float> _main_branch_radii;
+        std::vector <int> _main_branch_radius_levels;
         std::string _isp0;
         QImage _img;
         QImage _seg;
