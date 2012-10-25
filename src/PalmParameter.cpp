@@ -1,5 +1,6 @@
 #include "PalmParameter.h"
 #include "Transformer.h"
+#include <cstdlib>
 
 PalmParameter::PalmParameter(float noise): _noise(noise)
 {

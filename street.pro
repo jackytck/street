@@ -62,7 +62,7 @@ HEADERS += src/AdvancedVolume.h \
            src/FastCache.h \
            src/GenericLeafGrower.h \
            src/GPCA.h \
-           src/GPCA_global.h \
+           src/GPCA_Global.h \
            src/HoughTransform3d.h \
            src/ImageContour.h \
            src/ISPLoader.h \
@@ -111,7 +111,7 @@ SOURCES += src/AdvancedVolume.cpp \
            src/FastCache.cpp \
            src/GenericLeafGrower.cpp \
            src/GPCA.cpp \
-           src/GPCA_global.cpp \
+           src/GPCA_Global.cpp \
            src/HoughTransform3d.cpp \
            src/ImageContour.cpp \
            src/ISPLoader.cpp \

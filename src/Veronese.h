@@ -18,7 +18,7 @@
 #ifndef __VERONESE_H__
 #define __VERONESE_H__
 
-#include "GPCA_global.h"
+#include "GPCA_Global.h"
 
 
 // ***************************************************************************
