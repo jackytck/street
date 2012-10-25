@@ -32,7 +32,7 @@
 #ifndef __GPCA_H__
 #define __GPCA_H__
 
-#include "GPCA_global.h"
+#include "GPCA_Global.h"
 #include "Veronese.h"
 
 // **************************************************************************

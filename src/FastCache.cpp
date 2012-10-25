@@ -1,5 +1,7 @@
 #include "FastCache.h"
 #include <set>
+#include <cstdlib>
+#include <stdio.h>
 
 FastCache::FastCache(std::vector <osg::Vec3> relative_bounds, int step)
 {
