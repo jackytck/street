@@ -1976,7 +1976,8 @@ std::string BillboardTree::save_output(std::string path, std::string tex_path, b
     }
 
 	if(_verbose)
-		printf("Saving billboard clouds to %s.\n", path.c_str());
+		//printf("Saving billboard clouds to %s.\n", path.c_str());
+		printf("Saving billboard clouds...\n");
 
     //SAVING
     FILE *out = fopen(path.c_str(), "w");

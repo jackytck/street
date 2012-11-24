@@ -48,7 +48,7 @@ bool LaserProjector::setup(std::string path)
     for(int i=0; i<n; i++)
     {
         int camera_id;
-        float a, b, c, d, e, f, g, h, i, j, k, l;
+        float a, b, c, d, e, f, g, h, ii, j, k, l;
 
         //camera id
         getline(fs, s);
@@ -56,9 +56,9 @@ bool LaserProjector::setup(std::string path)
 
         //3x4 projection matrix
         getline(fs, s);
-        sscanf(s.c_str(), "%f %f %f %f %f %f %f %f %f %f %f %f\n", &a, &b, &c, &d, &e, &f, &g, &h, &i, &j, &k, &l);
+        sscanf(s.c_str(), "%f %f %f %f %f %f %f %f %f %f %f %f\n", &a, &b, &c, &d, &e, &f, &g, &h, &ii, &j, &k, &l);
 
-        _bdlcameras.push_back(BDLCamera(camera_id, a, b, c, d, e, f, g, h, i, j, k, l));
+        _bdlcameras.push_back(BDLCamera(camera_id, a, b, c, d, e, f, g, h, ii, j, k, l));
     }
 
     //check if each view has 1936 matrix and if no. of image equals no. of segmentation

@@ -2,8 +2,8 @@
 
 # initial skeleton
 #init_key='ustred_initial'
-init_key='palm4.bdlsge'
-#init_key='g.bdlsge'
+#init_key='palm4.bdlsge'
+init_key='g.bdlsge'
 
 # image-segmentation pair
 image='./isp0/ustred.png'
@@ -15,7 +15,7 @@ root=(291 426)
 
 #  output directory
 #output='ustred'
-output='palm2'
+output='demo1'
 
 # model specifics
 radius=3.0
@@ -30,9 +30,9 @@ multiplier=1.8
 lib_key=(a.bdlsge b.bdlsge c.bdlsge d.bdlsge)
 
 # generic leaf texture
-#gleaf='./res/leaf1.png'
+gleaf='./res/leaf1.png'
 # palm
-gleaf='./res/palm_leaf4.png'
+#gleaf='./res/palm_leaf4.png'
 
 # default directories
 library='./library'

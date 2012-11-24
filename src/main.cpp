@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 	int skeleton_index, step;
 	float simplification;
 	bool maya = false, verbose = false, exhaust = false, potential = false;
+    std::string cus_msg("");
 	std::string in_bdlsg("");
 	std::string in_gleaf(""); //generic leaf texture
 	std::string in_gleaf_modifier(""); //modifier to modify the generic leaf texture
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
 		("help,h", "Display this information")
 		("version,V", "Display version number")
 		("verbose,v", "Produce verbose output")
+		("msg", po::value <std::string>(&cus_msg), "Print custom message")
 		("library,L", po::value <std::string>(&library), "Master file of all library elements")
 		("initial,I", po::value <std::string>(&initial), "Master file of all initial skeletons")
 		("isp,S", po::value <std::string>(&isp0), "Image-Segmentation-Pair")
@@ -155,6 +157,9 @@ int main(int argc, char *argv[])
 
         if(vm.count("palm"))
             is_palm_leaves = true;
+
+        if(verbose)
+            printf("%s\n", cus_msg.c_str());
 
 		//entry point for any generic test
 		if(false)

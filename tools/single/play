@@ -1,0 +1,177 @@
+#!/usr/bin/python
+import os, sys, argparse
+
+class Street:
+    #default directories
+    library = './library'
+    initial = './initial'
+    isp0 = './isp0'
+
+    #default model parameters
+    GLEAF = './res/leaf1.png'
+    RADIUS = 3.0
+    LEAF_SCALE = 0.002636
+    LEAF_GROW_ZONE = 0.286
+    LEAF_RADIUS_K = 0.1
+    LEAF_PEDAL = 13
+    LEAF_FUZZINESS = 0.6
+    MULTIPLIER = 1.8
+
+    def abspath(self, path):
+        return os.path.abspath(path).replace('\\', '/')
+
+    def abspath_app(self, path):
+        root_dir = os.path.abspath(os.path.dirname(__file__))
+        return self.abspath('%s/%s' % (root_dir, path))
+
+    def write(self, mpath, data_str):
+       f = open(mpath, 'w')
+       f.write(data_str)
+       f.close()
+
+    def exists(self, f):
+       return os.path.exists(f)
+
+    def __init__(self, init_key, img, seg, rx, ry, output, gleaf, radius, leaf_scale, leaf_grow_zone, leaf_radius_k, leaf_pedal, leaf_fuzziness, multiplier):
+        self._verbose = False
+
+        #set optional arguments if available
+        if gleaf:
+            Street.GLEAF = gleaf
+        if radius:
+            Street.RADIUS = radius
+        if leaf_scale:
+            Street.LEAF_SCALE = leaf_scale
+        if leaf_grow_zone:
+            Street.LEAF_GROW_ZONE = leaf_grow_zone
+        if leaf_radius_k:
+            Street.LEAF_RADIUS_K = leaf_radius_k
+        if leaf_pedal:
+            Street.LEAF_PEDAL = leaf_pedal
+        if leaf_fuzziness:
+            Street.LEAF_FUZZINESS = leaf_fuzziness
+        if multiplier:
+            Street.MULTIPLIER = multiplier
+
+        #covert to absolute paths
+        init_key = self.abspath(init_key)
+        img = self.abspath(img)
+        seg = self.abspath(seg)
+        output = self.abspath(output)
+
+        #covert to absolute paths relative to this file
+        library = self.abspath_app(Street.library)
+        initial = self.abspath_app(Street.initial)
+        isp0 = self.abspath_app(Street.isp0)
+
+        #master files
+        LIBRARY = '%s/master' % library
+        INITIAL = '%s/master' % initial
+        ISP0 = '%s/master.isp0' % isp0
+
+        self.write(INITIAL, '%s\n' % init_key)
+        self.write(ISP0, '%s\n%s\n%s %s\n' % (img, seg, rx, ry))
+
+        #export
+        self._STREET = self.abspath_app('../../street')
+        self._SINGLE_OUT = output
+        self._GLEAF = self.abspath_app(Street.GLEAF)
+        self._LIBRARY = LIBRARY
+        self._ISP0 = ISP0
+        self._INITIAL = INITIAL
+
+        #paths checking
+        self.check()
+
+    def check(self):
+        if not (self.exists(self._STREET) and self.exists(self._LIBRARY) and self.exists(self._ISP0) and self.exists(self._INITIAL) and self.exists(self._GLEAF)):
+            self._valid = False
+            print 'Invalid directories!'
+        else:
+            self._valid = True
+            #create output dir if not exist
+            if not os.path.exists(self._SINGLE_OUT):
+                os.makedirs(self._SINGLE_OUT)
+
+    def execute(self, cmd, error):
+        if self._verbose:
+            print cmd
+        rc = os.system(cmd)
+        if rc != 0:
+            self._valid = False
+            print error
+
+    def mkcache(self):
+        if self._valid:
+            #outputs
+            self._CACHE = '%s/z_cache' % self._SINGLE_OUT
+            self._BDLSG = '%s/z_skeleton' % self._SINGLE_OUT
+
+            #mkcache
+            cmd = '%s -vu -L %s -I %s -S %s -b %s -c %s --msg %s' % (self._STREET, self._LIBRARY, self._INITIAL, self._ISP0, self._BDLSG, self._CACHE, './mkcache')
+            self.execute(cmd, 'mkcache error!')
+
+    def mkske(self):
+        if self._valid and self.exists(self._CACHE):
+            cmd = '%s -vu -L %s -I %s -S %s -b %s -C %s --msg %s' % (self._STREET, self._LIBRARY, self._INITIAL, self._ISP0, self._BDLSG, self._CACHE, './mkske')
+            self.execute(cmd, 'mkske error!')
+        
+    def mkmesh(self):
+        if self._valid and self.exists(self._BDLSG):
+            self._MESH = '%s/z_mesh' % self._SINGLE_OUT
+            cmd = '%s -vG %s -o %s --root_radius %f --msg %s' % (self._STREET, self._BDLSG, self._MESH, Street.RADIUS, './mkmesh')
+            self.execute(cmd, 'mkmesh error!')
+        
+    def mkleaf(self):
+        if self._valid and self.exists(self._CACHE) and self.exists(self._BDLSG):
+            self._LEAVES = '%s/z_leaves' % self._SINGLE_OUT
+            kd = -1
+            with open(self._CACHE, 'r') as f:
+                kd = float(f.readline())
+            cmd = '%s -v --gleaf_texture %s --leaf_scale %f --leaf_grow_zone %f --leaf_radius_k %f --leaf_pedal %d --leaf_fuzziness %f -S %s -G %s -r %s --kd %f --msg %s' % (self._STREET, self._GLEAF, Street.LEAF_SCALE, Street.LEAF_GROW_ZONE, Street.LEAF_RADIUS_K, Street.LEAF_PEDAL, Street.LEAF_FUZZINESS, self._ISP0, self._BDLSG, self._LEAVES, kd, './mkleaf')
+            self.execute(cmd, 'mkleaf error!')
+
+    def mksim_ske(self):
+        if self._valid and self.exists(self._BDLSG) and self.exists(self._LEAVES):
+            self._BDLSG_SIM = '%s/z_skeleton_sim' % self._SINGLE_OUT
+            cmd = '%s -v --sim_ske -G %s --input_leaf %s -b %s --msg %s' % (self._STREET, self._BDLSG, self._LEAVES, self._BDLSG_SIM, './mksim_ske')
+            self.execute(cmd, 'mksim_ske error!')
+        
+    def mksim_mesh(self):
+        if self._valid and self.exists(self._BDLSG_SIM):
+            self._MESH_SIM = '%s/z_mesh_sim' % self._SINGLE_OUT
+            cmd = '%s -vG %s -o %s --root_radius %f --msg %s' % (self._STREET, self._BDLSG_SIM, self._MESH_SIM, Street.RADIUS, './mksim_mesh')
+            self.execute(cmd, 'mksim_mesh error!')
+        
+    def mksim_leaf(self):
+        if self._valid and self.exists(self._LEAVES):
+            self._LEAVES_SIM = '%s/z_leaves_sim' % self._SINGLE_OUT
+            cmd = '%s -v --sim_leaf --input_leaf %s --texture_multiplier %f -l %s --msg %s' % (self._STREET, self._LEAVES, Street.MULTIPLIER, self._LEAVES_SIM, './mksim_leaf')
+            self.execute(cmd, 'mksim_leaf error!')
+        
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'A street helper. e.g. ./play ./initial/g.bdlsge ./isp0/river_birch.png ./isp0/river_birch_seg.png 291 426 -output ./demo')
+    parser.add_argument('init_key', help = 'path of initial key')
+    parser.add_argument('img', help = 'path of input image')
+    parser.add_argument('seg', help = 'path of segmentation')
+    parser.add_argument('rx', help = 'x-coord of root, (0, 0) is top-left')
+    parser.add_argument('ry', help = 'y-coord of root')
+    parser.add_argument('-output', help = 'path of output directory (auto-create if not exist)')
+    parser.add_argument('-gleaf', help = 'generic leaf alpha texture')
+    parser.add_argument('-radius', type = float, help = 'main branch radius')
+    parser.add_argument('-leaf_scale', type = float, help = 'leaf scale')
+    parser.add_argument('-leaf_grow_zone', type = float, help = 'leaf grow zone')
+    parser.add_argument('-leaf_radius_k', type = float, help = 'leaf radius k')
+    parser.add_argument('-leaf_pedal', type = int, help = 'number of leaf pedal')
+    parser.add_argument('-leaf_fuzziness', type= float, help = 'leaf fuzziness')
+    parser.add_argument('-multiplier', type= float, help = 'billboard texture multiplier')
+    args = parser.parse_args()
+
+    street = Street(args.init_key, args.img, args.seg, args.rx, args.ry, args.output, args.gleaf, args.radius, args.leaf_scale, args.leaf_grow_zone, args.leaf_radius_k, args.leaf_pedal, args.leaf_fuzziness, args.multiplier)
+    street.mkcache()
+    street.mkske()
+    street.mkmesh()
+    street.mkleaf()
+    street.mksim_ske()
+    street.mksim_mesh()
+    street.mksim_leaf()
